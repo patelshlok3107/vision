@@ -1,0 +1,12 @@
+{
+  "appId": "ai.vision.app",
+  "appName": "VISION",
+  "webDir": "frontend/.next",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0 }
+  }
+}
