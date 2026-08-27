@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Stub — use Android Studio to generate full wrapper via `gradle wrapper` or open project directly.
+# If you have Gradle installed: `gradle wrapper --gradle-version 8.7` then `./gradlew assembleDebug`
+echo "Open android/ in Android Studio Hedgehog+ — it will sync Gradle 8.7 automatically."
+echo "Or run: gradle wrapper --gradle-version 8.7 && ./gradlew assembleDebug"

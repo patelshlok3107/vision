@@ -1,0 +1,21 @@
+Performing system checks...
+
+System check identified no issues (0 silenced).
+August 26, 2026 - 23:09:09
+Django version 5.2.17, using settings 'config.settings'
+Starting ASGI/Daphne version 4.2.3 development server at http://0.0.0.0:8000/
+Quit the server with CTRL-BREAK.
+[ASYNC] context ready 75ms
+[ASYNC] context ready 31ms
+[ASYNC] context ready 47ms
+[ASYNC] context ready 37ms
+[ASYNC] context ready 38ms
+[ASYNC] context ready 45ms
+[ASYNC] context ready 63ms
+[ASYNC] context ready 36ms
+[ASYNC] context ready 37ms
+[ASYNC] context ready 72ms
+[ASYNC] context ready 47ms
+[ASYNC] context ready 65ms
+[ASYNC] context ready 40ms
+[ASYNC] context ready 48ms

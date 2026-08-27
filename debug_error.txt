@@ -1,0 +1,45 @@
+﻿python : Traceback 
+(most recent call 
+last):
+At line:1 char:1
++ python -c "
++ ~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Traceba   
+ ck (most recent     
+call last)::Stri    
+ng) [], RemoteEx    
+ception
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+  File "<string>", 
+line 13, in <module>
+  File "C:\Users\shlo
+k\OneDrive\Desktop\VI
+SION\backend\ai\servi
+ces\agent.py", line 
+125, in chat
+    messages = self._
+build_messages(conver
+sation, user_message)
+               ^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shlo
+k\OneDrive\Desktop\VI
+SION\backend\ai\servi
+ces\agent.py", line 
+33, in 
+_build_messages
+    system_prompt = V
+ISION_SYSTEM_PROMPT.f
+ormat(today=date.toda
+y().isoformat())
+                    ^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+KeyError: '"tool"'
