@@ -338,12 +338,20 @@ class OllamaClient:
                     def iter_lines(self, **kw):
                         for line in self.r.iter_lines(**kw):
                             if not line: continue
-                            if line.startswith(b"data: "):
+                            # handle both bytes and str (decode_unicode=True gives str)
+                            if isinstance(line, bytes):
+                                if not line.startswith(b"data: "): continue
                                 data = line[6:]
                                 if data == b"[DONE]": break
                                 try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
                                 except: continue
-                                if tok: yield json.dumps({"message":{"content":tok}}).encode()
+                            else:
+                                if not line.startswith("data: "): continue
+                                data = line[6:]
+                                if data == "[DONE]": break
+                                try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
+                                except: continue
+                            if tok: yield json.dumps({"message":{"content":tok}}).encode()
                     def json(self): return {}
                     @property
                     def ok(self): return self.r.ok
