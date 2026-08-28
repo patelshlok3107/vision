@@ -47,7 +47,17 @@ class OllamaClient:
         self._provider = getattr(settings, "AI_PROVIDER", "ollama").lower()
         self._init_session()
 
+    def _refresh_keys(self):
+        # Re-read env each call — Render injects GROQ_API_KEY at runtime after build
+        import os as _os
+        from django.conf import settings as _s
+        self._groq_key = getattr(_s, "GROQ_API_KEY", "") or _os.environ.get("GROQ_API_KEY", "")
+        self._openai_key = getattr(_s, "OPENAI_API_KEY", "") or _os.environ.get("OPENAI_API_KEY", "")
+        self._provider = getattr(_s, "AI_PROVIDER", "ollama").lower()
+        self.base_url = getattr(_s, "OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+
     def _use_groq(self) -> bool:
+        self._refresh_keys()
         # If cloud key exists, use it — Render has GROQ_API_KEY, local PC does not
         if self._groq_key or self._openai_key:
             return True
@@ -235,11 +245,22 @@ class OllamaClient:
 
     def healthCheck(self) -> dict:
         """Structured health per spec — no sensitive env exposure."""
-        if self._use_groq():
+        # Check Groq/OpenAI provider first — even if key missing, report clearly
+        self._refresh_keys()
+        is_cloud_provider = self._provider in ("groq", "openai") or "groq" in self.base_url.lower() or "openai" in self.base_url.lower()
+        if self._use_groq() or is_cloud_provider:
             m = self._groq_model()
+            has_key = bool(self._groq_key or self._openai_key)
+            prov = "groq" if (self._provider == "groq" or "groq" in m.lower() or self._groq_key) else "openai"
+            if not has_key and is_cloud_provider:
+                return {
+                    "ollama": {"connected": False, "baseUrl": prov, "error": "GROQ_API_KEY not set on server - set it in Render -> Environment -> GROQ_API_KEY (https://console.groq.com/keys)"},
+                    "textModel": {"name": m, "installed": False},
+                    "visionModel": {"name": "", "installed": False, "capable": False, "configured": False},
+                }
             return {
-                "ollama": {"connected": True, "baseUrl": "groq" if "groq" in m.lower() or self._provider=="groq" else "openai"},
-                "textModel": {"name": m, "installed": True},
+                "ollama": {"connected": has_key, "baseUrl": prov, "error": None if has_key else "GROQ_API_KEY not set on server"},
+                "textModel": {"name": m, "installed": has_key},
                 "visionModel": {"name": "", "installed": False, "capable": False, "configured": False},
             }
         base = self.base_url
@@ -272,14 +293,16 @@ class OllamaClient:
         return result
 
     GROQ_MODEL_MAP = {
-        "llama3": "llama3-8b-8192",
-        "llama-3.1-8b-instant": "llama3-8b-8192",
-        "llama3.1": "llama3-8b-8192",
-        "llama3-70b": "llama3-70b-8192",
+        "llama3": "groq/compound-mini",
+        "llama-3.1-8b-instant": "groq/compound-mini",
+        "llama3.1": "groq/compound-mini",
+        "llama3-8b-8192": "groq/compound-mini",
+        "llama3-70b": "groq/compound",
         "mistral": "mixtral-8x7b-32768",
     }
     def _groq_chat(self, messages, temperature, stream, model_override=None, num_predict=None):
         """Groq/OpenAI compatible path — uses requests, supports streaming SSE."""
+        self._refresh_keys()
         is_groq = "groq" in self.base_url.lower() or self._provider == "groq"
         if is_groq:
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -293,7 +316,7 @@ class OllamaClient:
             key = self._openai_key
             model = model_override or getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
         if not key:
-            raise OllamaError("GROQ_API_KEY or OPENAI_API_KEY not set")
+            raise OllamaError("VISION's AI service is not configured. Set GROQ_API_KEY (https://console.groq.com/keys) or OPENAI_API_KEY on the server. Local Ollama at %s is unreachable from Render." % self.base_url)
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         payload = {"model": model, "messages": messages, "temperature": temperature, "stream": stream}
         if num_predict:
@@ -303,7 +326,12 @@ class OllamaClient:
                 # Groq streaming returns SSE; we wrap to mimic Ollama's resp.iter_lines
                 resp = requests.post(url, json=payload, headers=headers, stream=True, timeout=(10, None))
                 if not resp.ok:
-                    raise OllamaError(f"Groq returned {resp.status_code}: {resp.text[:500]}")
+                    body = resp.text[:800]
+                    if resp.status_code == 401:
+                        raise OllamaError(f"VISION couldn't authenticate with the AI service (401). Check GROQ_API_KEY/OPENAI_API_KEY. Body: {body}")
+                    if resp.status_code == 429:
+                        raise OllamaError(f"VISION's AI service is rate-limited (429). Try again shortly. Body: {body}")
+                    raise OllamaError(f"Groq returned {resp.status_code}: {body}")
                 # Wrap SSE lines into Ollama-like JSON lines for caller
                 class GroqStreamWrapper:
                     def __init__(self, r): self.r = r
@@ -327,7 +355,12 @@ class OllamaClient:
             else:
                 resp = requests.post(url, json=payload, headers=headers, timeout=60)
                 if not resp.ok:
-                    raise OllamaError(f"Groq returned {resp.status_code}: {resp.text[:500]}")
+                    body = resp.text[:800]
+                    if resp.status_code == 401:
+                        raise OllamaError(f"VISION couldn't authenticate with the AI service (401). Body: {body}")
+                    if resp.status_code == 429:
+                        raise OllamaError(f"VISION's AI service is rate-limited (429). Body: {body}")
+                    raise OllamaError(f"Groq returned {resp.status_code}: {body}")
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
                 # mimic Ollama non-stream return
