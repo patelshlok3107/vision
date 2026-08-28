@@ -11,22 +11,22 @@ services:
         value: 3.11.0
       - key: DEBUG
         value: False
-      # ── Hosts / CORS ─────────────────────────────────────────────
+      # Hosts / CORS
       - key: ALLOWED_HOSTS
         value: .onrender.com,vision-bice-sigma.vercel.app,localhost,127.0.0.1
       - key: CORS_ALLOW_ALL_ORIGINS
         value: False
       - key: CORS_ALLOWED_ORIGINS
         value: https://vision-bice-sigma.vercel.app,https://vision-bice-sigma-git-main-shloks-projects.vercel.app,http://localhost:3000,http://127.0.0.1:3000
-      # ── Security ─────────────────────────────────────────────────
+      # Security
       - key: SECRET_KEY
         sync: false
       # DATABASE_URL is auto-provided if you attach a Render Postgres; otherwise set manually
       - key: DATABASE_URL
         sync: false
-      # ── AI Provider ──────────────────────────────────────────────
-      # Render cannot reach localhost:11434 — use Groq (free tier) for production.
-      # Set GROQ_API_KEY in Render dashboard (Environment → Add). Get key at https://console.groq.com/keys
+      # AI Provider
+      # Render cannot reach localhost:11434 - use Groq (free tier) for production.
+      # Set GROQ_API_KEY in Render dashboard (Environment -> Add). Get key at https://console.groq.com/keys
       - key: AI_PROVIDER
         value: groq
       - key: GROQ_API_KEY
