@@ -5,7 +5,9 @@ All sensitive and environment-specific values are loaded from .env via python-de
 
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import urlparse
 from decouple import config, Csv
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -99,6 +101,17 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5433'),
     }
 }
+# Render / Railway provide DATABASE_URL — override if set
+if os.environ.get("DATABASE_URL"):
+    u = urlparse(os.environ["DATABASE_URL"])
+    DATABASES["default"] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': u.path[1:],
+        'USER': u.username,
+        'PASSWORD': u.password,
+        'HOST': u.hostname,
+        'PORT': u.port or 5432,
+    }
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -127,6 +140,10 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+# If explicit origins set, disable allow-all
+if CORS_ALLOWED_ORIGINS and CORS_ALLOWED_ORIGINS != ['']:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 # -------------------------------------------------------------------------
 # Celery / Redis
@@ -154,6 +171,12 @@ LEARNING_MIN_QUALITY_SCORE = config('LEARNING_MIN_QUALITY_SCORE', default=60, ca
 
 AI_PROVIDER = config('AI_PROVIDER', default='ollama')
 LOCAL_AI_ONLY = config('LOCAL_AI_ONLY', default=True, cast=bool)
+
+# Cloud LLM fallback (Groq / OpenAI) — free tier for Render
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+GROQ_MODEL = config('GROQ_MODEL', default='llama3-8b-8192')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
 
 OLLAMA_BASE_URL = config('OLLAMA_BASE_URL', default='http://localhost:11434')
 # Text model — primary reasoning model
@@ -236,4 +259,5 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
