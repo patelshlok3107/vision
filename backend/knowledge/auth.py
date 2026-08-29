@@ -39,7 +39,51 @@ def _get_expiry_hours() -> int:
     return getattr(settings, "ADMIN_JWT_EXPIRY_HOURS", 12)
 
 
+def ensure_admin_user():
+    """Ensure Django User exists for admin email so normal /api/auth/login works."""
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        email = _get_admin_email().strip().lower()
+        pwd = _get_admin_password()
+        if not email or not pwd:
+            return
+        u = User.objects.filter(email__iexact=email).first()
+        if not u:
+            username = email.split("@")[0] or "admin123"
+            base = username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base}{counter}"
+                counter += 1
+            u = User.objects.create_user(username=username, email=email, password=pwd)
+            u.is_staff = True
+            u.is_superuser = True
+            u.save(update_fields=["is_staff", "is_superuser"])
+        else:
+            # Ensure staff and password sync
+            updated = False
+            if not u.is_staff:
+                u.is_staff = True
+                updated = True
+            if not u.is_superuser:
+                u.is_superuser = True
+                updated = True
+            if updated:
+                u.save(update_fields=["is_staff", "is_superuser"])
+            if not u.check_password(pwd):
+                u.set_password(pwd)
+                u.save(update_fields=["password"])
+    except Exception:
+        pass
+
+
 def verify_admin_credentials(username: str, password: str) -> bool:
+    # Ensure admin User exists for normal login path
+    try:
+        ensure_admin_user()
+    except Exception:
+        pass
     expected_user = _get_admin_username()
     expected_email = _get_admin_email()
     # Accept either username or email (case-insensitive for email, exact for username)
