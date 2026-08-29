@@ -279,8 +279,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25 MB
 # -------------------------------------------------------------------------
 # Admin panel credentials (env-driven, never hard-coded in frontend)
 # -------------------------------------------------------------------------
-# For development: admin / admin123 . Production MUST set ADMIN_PASSWORD_HASH
+# For development: admin / admin123 and admin123@gmail.com / admin123 . Production MUST set ADMIN_PASSWORD_HASH
 ADMIN_USERNAME = config('ADMIN_USERNAME', default='admin')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin123@gmail.com')
 # If ADMIN_PASSWORD_HASH is set (pbkdf2/bcrypt), it takes precedence. Otherwise fallback to ADMIN_PASSWORD plaintext for dev.
 ADMIN_PASSWORD = config('ADMIN_PASSWORD', default='admin123')
 ADMIN_PASSWORD_HASH = config('ADMIN_PASSWORD_HASH', default='')

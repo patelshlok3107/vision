@@ -19,6 +19,10 @@ def _get_admin_username() -> str:
     return getattr(settings, "ADMIN_USERNAME", "admin")
 
 
+def _get_admin_email() -> str:
+    return getattr(settings, "ADMIN_EMAIL", "admin123@gmail.com")
+
+
 def _get_admin_password() -> str:
     return getattr(settings, "ADMIN_PASSWORD", "admin123")
 
@@ -37,7 +41,10 @@ def _get_expiry_hours() -> int:
 
 def verify_admin_credentials(username: str, password: str) -> bool:
     expected_user = _get_admin_username()
-    if username != expected_user:
+    expected_email = _get_admin_email()
+    # Accept either username or email (case-insensitive for email, exact for username)
+    u_low = username.strip().lower()
+    if u_low != expected_user.lower() and u_low != expected_email.lower() and username.strip() != expected_user and username.strip() != expected_email:
         return False
     h = _get_admin_hash()
     if h:
