@@ -26,7 +26,19 @@ from ai.services.ollama_client import client as _ollama_client
 
 
 def health_view(request):
-    return JsonResponse({"status": "ok", "service": "VISION Backend"})
+    from django.utils import timezone
+    return JsonResponse({"status": "ok", "service": "VISION", "timestamp": timezone.now().isoformat()})
+
+
+def version_view(request):
+    from django.utils import timezone
+    # Backend version - single source, bump when deploying
+    return JsonResponse({
+        "version": "1.1.0",
+        "build": timezone.now().strftime("%Y-%m-%d"),
+        "service": "VISION Backend",
+        "updatedAt": timezone.now().isoformat(),
+    })
 
 
 def ai_health_alias(request):
@@ -79,6 +91,12 @@ def keepalive_status(request):
 urlpatterns = [
     path('health', health_view, name='health'),
     path('health/', health_view, name='health-slash'),
+    path('version', version_view, name='version'),
+    path('version/', version_view, name='version-slash'),
+    path('api/version', version_view, name='api-version'),
+    path('api/version/', version_view, name='api-version-slash'),
+    path('api/health', health_view, name='api-health'),
+    path('api/health/', health_view, name='api-health-slash'),
     path('api/health/ai', ai_health_alias, name='ai-health-alias'),
     path('api/health/ai/', ai_health_alias, name='ai-health-alias-slash'),
     path('api/internal/keepalive', internal_keepalive, name='internal-keepalive'),
@@ -101,6 +119,8 @@ urlpatterns = [
     
     # Continuous Learning
     path('api/learning/', include('learning.urls')),
+    # Knowledge Engine / Admin Panel
+    path('api/', include('knowledge.urls')),
 ]
 
 from django.conf import settings

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'users',
     'ai_agent',
     'learning',
+    'knowledge',
 ]
 
 MIDDLEWARE = [
@@ -103,14 +104,28 @@ DATABASES = {
 }
 # Render / Railway provide DATABASE_URL — override if set
 if os.environ.get("DATABASE_URL"):
-    u = urlparse(os.environ["DATABASE_URL"])
+    db_url = os.environ["DATABASE_URL"]
+    # Support sqlite:// for local dev without Postgres
+    if db_url.startswith("sqlite"):
+        DATABASES["default"] = {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': str(BASE_DIR / "db.sqlite3"),
+        }
+    else:
+        u = urlparse(db_url)
+        DATABASES["default"] = {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': u.path[1:],
+            'USER': u.username,
+            'PASSWORD': u.password,
+            'HOST': u.hostname,
+            'PORT': u.port or 5432,
+        }
+# Fallback to sqlite if env says so (for local dev without Postgres)
+if config('USE_SQLITE', default=False, cast=bool):
     DATABASES["default"] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': u.path[1:],
-        'USER': u.username,
-        'PASSWORD': u.password,
-        'HOST': u.hostname,
-        'PORT': u.port or 5432,
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': str(BASE_DIR / "db.sqlite3"),
     }
 
 AUTH_USER_MODEL = 'users.User'
@@ -260,6 +275,27 @@ VISION_TERMINAL_ENABLED = config('VISION_TERMINAL_ENABLED', default=True, cast=b
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400  # 25 MB
+
+# -------------------------------------------------------------------------
+# Admin panel credentials (env-driven, never hard-coded in frontend)
+# -------------------------------------------------------------------------
+# For development: admin / admin123 . Production MUST set ADMIN_PASSWORD_HASH
+ADMIN_USERNAME = config('ADMIN_USERNAME', default='admin')
+# If ADMIN_PASSWORD_HASH is set (pbkdf2/bcrypt), it takes precedence. Otherwise fallback to ADMIN_PASSWORD plaintext for dev.
+ADMIN_PASSWORD = config('ADMIN_PASSWORD', default='admin123')
+ADMIN_PASSWORD_HASH = config('ADMIN_PASSWORD_HASH', default='')
+# JWT secret for admin tokens — reuse SECRET_KEY if not set
+ADMIN_JWT_SECRET = config('ADMIN_JWT_SECRET', default=config('SECRET_KEY', default='django-insecure-CHANGE-IN-PRODUCTION'))
+ADMIN_JWT_EXPIRY_HOURS = config('ADMIN_JWT_EXPIRY_HOURS', default=12, cast=int)
+
+# Knowledge engine limits
+KNOWLEDGE_MAX_PAGES_PER_SOURCE = config('KNOWLEDGE_MAX_PAGES_PER_SOURCE', default=50, cast=int)
+KNOWLEDGE_MAX_DEPTH = config('KNOWLEDGE_MAX_DEPTH', default=2, cast=int)
+KNOWLEDGE_CHUNK_SIZE = config('KNOWLEDGE_CHUNK_SIZE', default=800, cast=int)
+KNOWLEDGE_CHUNK_OVERLAP = config('KNOWLEDGE_CHUNK_OVERLAP', default=120, cast=int)
+KNOWLEDGE_EMBEDDING_MODEL = config('KNOWLEDGE_EMBEDDING_MODEL', default=config('OLLAMA_EMBEDDING_MODEL', default='nomic-embed-text'))
+KNOWLEDGE_RETRIEVAL_TOP_K = config('KNOWLEDGE_RETRIEVAL_TOP_K', default=5, cast=int)
+KNOWLEDGE_MIN_SIMILARITY = config('KNOWLEDGE_MIN_SIMILARITY', default=0.55, cast=float)
 
 # -------------------------------------------------------------------------
 # Password validation

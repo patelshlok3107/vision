@@ -64,6 +64,15 @@ services:
         value: true
       - key: GROQ_KEEPALIVE_INTERVAL_MS
         value: 840000
+      # Admin panel — env-driven (never hard-code admin123 in frontend JS for production)
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      - key: ADMIN_JWT_SECRET
+        sync: false
 
   # Optional Render Cron — pings internal keepalive endpoint every 14m to wake free instance and keep Grok warm
   # If Render free instance sleeps, in-process keepalive won't run; this cron wakes it via HTTP.
