@@ -66,8 +66,22 @@ class AIChatView(APIView):
             memory_enabled = memory_enabled_raw.lower() not in ("0", "false", "off", "no")
         else:
             memory_enabled = bool(memory_enabled_raw) if memory_enabled_raw is not None else True
+        # User setting overrides (temperature, max_tokens etc.) forwarded from frontend
+        overrides: dict = {}
+        for _k in ("temperature", "max_tokens", "context_length", "streaming", "use_history_context", "chat_history_enabled", "fast_mode", "use_routing", "keep_warm"):
+            if request.data.get(_k) is not None:
+                overrides[_k] = request.data.get(_k)
+        if "temperature" in overrides:
+            try: overrides["temperature"] = float(overrides["temperature"])
+            except: del overrides["temperature"]
+        if "max_tokens" in overrides:
+            try: overrides["max_tokens"] = int(overrides["max_tokens"])
+            except: del overrides["max_tokens"]
+        if "context_length" in overrides:
+            try: overrides["context_length"] = int(overrides["context_length"])
+            except: del overrides["context_length"]
         _logger.info("[CHAT] Conversation ID: %s", conversation_id)
-        _logger.info("[CHAT] Mode=%s memory_enabled=%s", mode, memory_enabled)
+        _logger.info("[CHAT] Mode=%s memory_enabled=%s overrides=%s", mode, memory_enabled, overrides)
         _logger.info("[CHAT] Image detected: %s (files=%d, ids=%s)", bool(files or attachment_ids), len(files), attachment_ids)
         _logger.info("[CHAT] User prompt: %s", (message or "")[:200])
         for f in files:
@@ -225,8 +239,8 @@ class AIChatView(APIView):
 
         agent = VisionAgent(user=request.user)
         try:
-            _logger.info("[CHAT:%s] Starting agent stream mode=%s memory=%s", _req_id, mode, memory_enabled)
-            stream_gen = agent.chat_stream(message, conversation=conversation, attachment_ids=attachment_ids, mode=mode, memory_enabled=memory_enabled, request_id=_req_id, t0=_t0)
+            _logger.info("[CHAT:%s] Starting agent stream mode=%s memory=%s overrides=%s", _req_id, mode, memory_enabled, overrides)
+            stream_gen = agent.chat_stream(message, conversation=conversation, attachment_ids=attachment_ids, mode=mode, memory_enabled=memory_enabled, request_id=_req_id, t0=_t0, overrides=overrides)
             resp = StreamingHttpResponse(stream_gen, content_type='application/x-ndjson')
             # Critical: prevent any proxy or middleware from buffering the stream
             resp['Cache-Control'] = 'no-cache, no-transform'
@@ -313,9 +327,25 @@ async def ai_chat_async_view(request):
     else:
         memory_enabled = bool(memory_enabled_raw) if memory_enabled_raw is not None else True
 
+    # Extract user setting overrides forwarded from frontend (temperature, max_tokens etc.)
+    overrides: dict = {}
+    for _k in ("temperature", "max_tokens", "context_length", "streaming", "use_history_context", "chat_history_enabled", "fast_mode", "use_routing", "keep_warm"):
+        if _k in _data and _data[_k] is not None:
+            overrides[_k] = _data[_k]
+    # Coerce numeric
+    if "temperature" in overrides:
+        try: overrides["temperature"] = float(overrides["temperature"])
+        except: del overrides["temperature"]
+    if "max_tokens" in overrides:
+        try: overrides["max_tokens"] = int(overrides["max_tokens"])
+        except: del overrides["max_tokens"]
+    if "context_length" in overrides:
+        try: overrides["context_length"] = int(overrides["context_length"])
+        except: del overrides["context_length"]
+
     _req_id = request_id or request.headers.get('X-Request-ID', '') or f"req_{int(_t0*1000)}"
     _t_after_parse = _t.perf_counter()
-    _logger.info("[CHAT-ASYNC:%s] ▶ Request received (parse %.0fms)", _req_id, (_t_after_parse-_t0)*1000)
+    _logger.info("[CHAT-ASYNC:%s] ▶ Request received (parse %.0fms) overrides=%s", _req_id, (_t_after_parse-_t0)*1000, overrides)
 
     if not message and not files and not attachment_ids:
         from django.http import JsonResponse
@@ -525,7 +555,7 @@ async def ai_chat_async_view(request):
     agent = VisionAgent(user=_user)
 
     async def _async_stream():
-        sync_gen = agent.chat_stream(message, conversation=conversation, attachment_ids=attachment_ids, mode=mode, memory_enabled=memory_enabled, request_id=_req_id, t0=_t0)
+        sync_gen = agent.chat_stream(message, conversation=conversation, attachment_ids=attachment_ids, mode=mode, memory_enabled=memory_enabled, request_id=_req_id, t0=_t0, overrides=overrides)
         loop = asyncio.get_event_loop()
         def _next():
             try:

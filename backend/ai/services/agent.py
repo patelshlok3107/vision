@@ -725,7 +725,7 @@ class VisionAgent:
             "error": None,
         }
 
-    def chat_stream(self, user_message: str, conversation=None, attachment_ids: list[str] | None = None, mode: str = "", memory_enabled: bool = True, request_id: str = "", t0: float | None = None):
+    def chat_stream(self, user_message: str, conversation=None, attachment_ids: list[str] | None = None, mode: str = "", memory_enabled: bool = True, request_id: str = "", t0: float | None = None, overrides: dict | None = None):
         """
         Yields NDJSON encoded bytes.
         PERF: Pre-fetches images + history + memories in PARALLEL before anything else,
@@ -774,6 +774,57 @@ class VisionAgent:
 
         # ── INTENT CLASSIFICATION (before expensive fetches) ────────────────
         classification = classify_intent(user_message, has_image, mode)
+        # Apply user setting overrides (from frontend or persisted UserSettings)
+        try:
+            # If overrides not provided via payload, try to load persisted UserSettings
+            _over = overrides or {}
+            if not _over and self.user and getattr(self.user, 'is_authenticated', False):
+                try:
+                    from users.models import UserSettings
+                    _us = UserSettings.objects.filter(user=self.user).first()
+                    if _us:
+                        _over = {
+                            "temperature": _us.temperature,
+                            "max_tokens": _us.max_tokens,
+                            "context_length": _us.context_length,
+                            "fast_mode": _us.fast_mode,
+                            "use_routing": _us.use_routing,
+                            "keep_warm": _us.keep_warm,
+                            "use_history_context": _us.use_history_context,
+                            "chat_history_enabled": _us.chat_history_enabled,
+                        }
+                except: pass
+            else:
+                _over = overrides or {}
+            if _over:
+                if _over.get("temperature") is not None:
+                    try: classification["temperature"] = float(_over["temperature"])
+                    except: pass
+                if _over.get("max_tokens") is not None:
+                    try: classification["num_predict"] = int(_over["max_tokens"])
+                    except: pass
+                if _over.get("context_length") is not None:
+                    try: classification["num_ctx"] = int(_over["context_length"])
+                    except: pass
+                if _over.get("keep_warm") is False:
+                    classification["keep_alive"] = "0"
+                if _over.get("fast_mode") is False and classification.get("is_simple"):
+                    # Disable ultra-fast path if user turned off fast mode
+                    classification["is_simple"] = False
+                    classification["skip_memory"] = False
+                    classification["skip_rag"] = False
+                # Store for later use (history handling)
+                if _over.get("use_history_context") is False:
+                    classification["_force_no_history"] = True
+                if _over.get("chat_history_enabled") is False:
+                    classification["_ephemeral_chat"] = True
+                # Keep overrides for later stages
+                overrides = _over
+            else:
+                overrides = _over
+        except Exception as e:
+            logger.debug(f"[SETTINGS] override handling failed: {e}")
+            overrides = overrides or {}
         t_classify = int((time.perf_counter() - t_start) * 1000)
         resolved_mode = classification["mode"]
         skip_knowledge = classification["skip_rag"]
@@ -988,9 +1039,15 @@ class VisionAgent:
         # Detect legacy simple chat as fallback for anything not classified ultra-fast
         is_simple = classification["is_simple"] or (self._is_simple_chat(user_message) and not has_image and resolved_mode not in ("think", "agent", "code"))
 
+        # Honor use_history_context = false → no history context
+        force_no_history = bool(classification.get("_force_no_history"))
         # Start parallel history+memory fetch
         history_mem_future: Future | None = None
-        if conversation and not is_simple:
+        if force_no_history:
+            # User disabled history context — return empty history/memory
+            history_mem_future = None
+            # Will be handled as empty below
+        elif conversation and not is_simple:
             history_mem_future = _executor.submit(
                 self._get_history_and_memory_parallel,
                 conversation, user_message, is_simple, memory_enabled, resolved_mode, effective_has_image,
@@ -1032,6 +1089,11 @@ class VisionAgent:
         t_history_done = int((_t_mem_end_local - t_start) * 1000)
         mem_latency = t_history_done
         logger.info("[PERF] Pre-fetch done at +%dms", t_history_done)
+
+        # Honor use_history_context = false → clear history even if fetched
+        if force_no_history:
+            prefetched_history = ([], [])
+            # keep memories/knowledge as is
 
         # Dynamic context/output options — prefer classification values if set
         prefetch_len = (len(prefetched_history[0]) + len(prefetched_history[1])) if prefetched_history else 0
