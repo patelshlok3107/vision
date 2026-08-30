@@ -840,6 +840,65 @@ class VisionAgent:
             yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
             return
 
+        # ── IMAGE GENERATION INTERCEPT ──────────────────────────────────────
+        try:
+            from .image_gen import is_image_generation_request as _is_img_req, generate_image as _gen_img
+            _is_img_gen = _is_img_req(user_message, has_image=has_image)
+            # Also treat variation short prompts when last assistant was image generation
+            _need_variation_check = False
+            _base_image_prompt = None
+            if not _is_img_gen and conversation and not has_image:
+                # Check if last assistant message was an image generation
+                try:
+                    from ai_agent.models import Message as _IMsg
+                    _last = _IMsg.objects.filter(conversation=conversation, role="assistant").order_by("-created_at").first()
+                    if _last and _last.metadata and _last.metadata.get("is_image_generation"):
+                        _base_image_prompt = _last.metadata.get("image_prompt") or _last.metadata.get("image_url") or ""
+                        _low = user_message.lower().strip()
+                        if len(_low) < 80 and any(kw in _low for kw in ["make it", "change to", "variation", "more", "winter", "snowy", "night", "day", "sunny", "cartoon", "realistic", "edit", "add ", "remove "]):
+                            _is_img_gen = True
+                            _need_variation_check = True
+                except: pass
+            if _is_img_gen:
+                # Route to image generation pipeline — bypass LLM
+                # Save user message synchronously (needed for history)
+                try:
+                    self._save_message(conversation, "user", user_message, attachment_ids=attachment_ids)
+                except: pass
+                yield json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "image"}}) + "\n"
+                yield json.dumps({"type": "status", "content": "Creating your image..."}) + "\n"
+                # Build prompt: if variation, combine
+                _prompt = user_message
+                if _need_variation_check and _base_image_prompt:
+                    _prompt = f"{_base_image_prompt}, {user_message.strip().lstrip('.')}"
+                # Yield skeleton trigger
+                yield json.dumps({"type": "image_generating", "content": {"prompt": _prompt, "status": "generating"}}) + "\n"
+                # Slight delay to show shimmer, then second status
+                yield json.dumps({"type": "status", "content": "Finishing details..."}) + "\n"
+                try:
+                    _res = _gen_img(_prompt, width=1024, height=1024)
+                    _url = _res["url"]
+                    _prompt_used = _res.get("prompt_used", _prompt)
+                    # Save assistant message with image markdown + metadata
+                    try:
+                        _md = f"![Generated Image]({_url})\n\n*Prompt: {_prompt_used[:400]}*"
+                        self._save_message(conversation, "assistant", _md, metadata={"image_url": _url, "image_prompt": _prompt_used, "image_provider": _res.get("provider",""), "is_image_generation": True})
+                    except Exception as _se:
+                        logger.warning("[ImageGen] save failed: %s", _se)
+                    # Yield image result as markdown token + dedicated image event
+                    yield json.dumps({"type": "image", "content": {"url": _url, "prompt": _prompt_used, "provider": _res.get("provider","")}} ) + "\n"
+                    yield json.dumps({"type": "token", "content": f"![Generated Image]({_url})\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
+                    yield json.dumps({"type": "diagnostics", "content": {"Request Start": 0, "Images": t_images_done, "Classify": t_classify, "Mode": "image_generation", "Model": _res.get("provider","pollinations"), "Path": "image_generation"}}) + "\n"
+                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                    return
+                except Exception as _ie:
+                    logger.error("[ImageGen] chat intercept failed: %s", _ie)
+                    yield json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}) + "\n"
+                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                    return
+        except Exception as _ige:
+            logger.warning("[ImageGen] intercept check failed: %s", _ige)
+
         # ── Save user message completely async ───────────────────────────────
         def _deferred_user_save():
             try:

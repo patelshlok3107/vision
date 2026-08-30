@@ -37,4 +37,7 @@ urlpatterns = [
     path('performance/', AIPerformanceView.as_view(), name='ai-performance'),
     path('vision/test/', AIVisionTestView.as_view(), name='vision-test'),
     path('router/', AIRouterView.as_view(), name='ai-router'),
+    path('generate-image/', __import__('ai_agent.image_views', fromlist=['ImageGenerateView']).ImageGenerateView.as_view(), name='ai-generate-image'),
+    path('generate-image/status/', __import__('ai_agent.image_views', fromlist=['ImageGenerateView']).ImageGenerateView.as_view(), name='ai-generate-image-status'),
+    path('image/edit/', __import__('ai_agent.image_views', fromlist=['ImageEditView']).ImageEditView.as_view(), name='ai-image-edit'),
 ]

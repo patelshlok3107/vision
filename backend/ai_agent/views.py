@@ -168,6 +168,27 @@ class AIChatView(APIView):
                     if b64s:
                         entry["images"] = b64s
                     msgs.append(entry)
+                    # ── Guest image generation intercept (sync path) ──
+                    try:
+                        from ai.services.image_gen import is_image_generation_request as _gi, generate_image as _ggen
+                        if _gi(message, has_image=has_img) and not has_img:
+                            yield _j.dumps({"type":"stream_start","content":{"path":"image_generation","mode":"guest"}}) + "\n"
+                            yield _j.dumps({"type":"status","content":"Creating your image..."}) + "\n"
+                            yield _j.dumps({"type":"image_generating","content":{"prompt": message}}) + "\n"
+                            yield _j.dumps({"type":"status","content":"Finishing details..."}) + "\n"
+                            try:
+                                _res = _ggen(message, width=1024, height=1024)
+                                _url = _res["url"]; _pu = _res.get("prompt_used", message)
+                                yield _j.dumps({"type":"image","content":{"url": _url, "prompt": _pu}}) + "\n"
+                                yield _j.dumps({"type":"token","content": f"![Generated Image]({_url})\n\n*Prompt: {_pu[:400]}*"}) + "\n"
+                                import uuid as _uu2
+                                yield _j.dumps({"type":"done","conversation_id": f"guest_{_uu2.uuid4().hex[:8]}"}) + "\n"
+                                return
+                            except Exception as _ie:
+                                yield _j.dumps({"type":"error","content":"Couldn't generate the image. Please try again."}) + "\n"
+                                yield _j.dumps({"type":"done","conversation_id": None}) + "\n"
+                                return
+                    except: pass
                     yield _j.dumps({"type":"stream_start","content":{"path":"guest","mode":"guest"}}) + "\n"
                     yield _j.dumps({"type":"status","content":"VISION is thinking..."}) + "\n"
                     try:
@@ -461,6 +482,45 @@ async def ai_chat_async_view(request):
             user_entry["images"] = guest_b64s
         messages.append(user_entry)
 
+        # ── Guest image generation intercept ──
+        try:
+            from ai.services.image_gen import is_image_generation_request as _g_is_img, generate_image as _g_gen
+            if _g_is_img(message, has_image=has_image) and not has_image:
+                # Check variation against guest history
+                _base = None
+                if isinstance(guest_history, list) and guest_history:
+                    for m in reversed(guest_history):
+                        if m.get('role')=='assistant' and m.get('content') and '![Generated Image]' in str(m.get('content')):
+                            # Extract URL prompt not available, use last user prompt as base
+                            _base = guest_history[-2].get('content') if len(guest_history)>=2 else None
+                            break
+                    if _base and len(message)<80 and any(kw in message.lower() for kw in ["make it","winter","snowy","night"]):
+                        message = f"{_base}, {message}"
+                async def _guest_img_stream():
+                    yield _json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "guest"}}) + "\n"
+                    yield _json.dumps({"type": "status", "content": "Creating your image..."}) + "\n"
+                    yield _json.dumps({"type": "image_generating", "content": {"prompt": message}}) + "\n"
+                    yield _json.dumps({"type": "status", "content": "Finishing details..."}) + "\n"
+                    try:
+                        loop = asyncio.get_event_loop()
+                        def _do_gen(): return _g_gen(message, width=1024, height=1024)
+                        _res = await loop.run_in_executor(None, _do_gen)
+                        _url = _res["url"]
+                        _prompt_used = _res.get("prompt_used", message)
+                        yield _json.dumps({"type": "image", "content": {"url": _url, "prompt": _prompt_used}}) + "\n"
+                        yield _json.dumps({"type": "token", "content": f"![Generated Image]({_url})\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
+                        import uuid as _uu
+                        yield _json.dumps({"type": "done", "conversation_id": f"guest_{_uu.uuid4().hex[:8]}"}) + "\n"
+                    except Exception as _ie:
+                        yield _json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}) + "\n"
+                        yield _json.dumps({"type": "done", "conversation_id": None}) + "\n"
+                resp = StreamingHttpResponse(_guest_img_stream(), content_type='application/x-ndjson')
+                resp['Cache-Control'] = 'no-cache, no-transform'
+                resp['X-Accel-Buffering'] = 'no'
+                resp['X-Request-ID'] = _req_id
+                return resp
+        except Exception as _gie:
+            pass
         # Guest uses restricted model params
         from django.conf import settings as _gs
         guest_num_predict = 512 if not has_image else 1024

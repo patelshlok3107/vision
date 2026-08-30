@@ -1,0 +1,349 @@
+
+> frontend@1.1.1 dev
+> next dev -H 127.0.0.1
+
+▲ Next.js 16.3.2 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env
+✓ Ready in 1286ms
+✓ Running next.config.ts took 99ms
+
+ GET / 200 in 278ms (next.js: 94ms, application-code: 184ms)
+ GET /chat 200 in 3.4s (next.js: 1640ms, application-code: 1733ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/chat" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="chat/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function ChatPage} serverProvidedParams={{...}}>
+                <ChatPage params={Promise} searchParams={Promise}>
+                  <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+                    <div>
+                    <MobileDrawer>
+                    <div>
+                    <div className="flex-1 min...">
+                      <ChatView>
+                        <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+                          <div>
+                          <div>
+                          <div>
+                          <div>
+                          <div className="composer-w...">
+                            <div className="composer">
+                              <div
+                                className="relative"
+-                               style={{overflow-x:"visible",overflow-y:"visible"}}
+                              >
+                              ...
+                            ...
+                          ...
+            ...
+          ...
+ 
+ GET /chat 200 in 559ms (next.js: 84ms, application-code: 475ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/chat" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="chat/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function ChatPage} serverProvidedParams={{...}}>
+                <ChatPage params={Promise} searchParams={Promise}>
+                  <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+                    <div>
+                    <MobileDrawer>
+                    <div>
+                    <div className="flex-1 min...">
+                      <ChatView>
+                        <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+                          <div>
+                          <div>
+                          <div>
+                          <div>
+                          <div className="composer-w...">
+                            <div className="composer">
+                              <div
+                                className="relative"
+-                               style={{overflow-x:"visible",overflow-y:"visible"}}
+                              >
+                              ...
+                            ...
+                          ...
+            ...
+          ...
+ 
+[browser] In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+      <div>
+      <MobileDrawer>
+      <div>
+      <div className="flex-1 min...">
+        <ChatView>
+          <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+            <div>
+            <div>
+            <div ref={{...}} onScroll={function handleScroll} className="messages-c...">
+              <div className="chat-content">
+                <div className="message-list">
+                  <div>
+                  <div className="message-as..." style={{...}}>
+                    <div className="">
+                      <MarkdownRenderer content={"![Genera..."} isStreaming={false}>
+                        <div className="markdown-c...">
+                          <Markdown remarkPlugins={[...]} rehypePlugins={[...]} components={{...}}>
+                            <p node={{type:"element", ...}}>
+>                             <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">
+                                <img src={"https://..."} alt="Generated ..." node={{type:"element", ...}}>
+                                  <GeneratedImageCard src={"https://..."} alt="Generated ...">
+                                    <div className="generated-...">
+>                                     <div className="relative group">
+                                      ...
+                                ...
+                            ...
+                    ...
+                  ...
+            ...
+ 
+[browser] <p> cannot contain a nested <div>.
+See this log for the ancestor stack trace. 
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 2.1s (next.js: 1955ms, application-code: 123ms)
+[browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+ GET /chat/cow-eating-grass.jpg 200 in 842ms (next.js: 402ms, application-code: 440ms)
+✓ Compiled in 1328ms
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 188ms (next.js: 78ms, application-code: 111ms)
+✓ Compiled in 298ms
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 128ms (next.js: 49ms, application-code: 79ms)
+✓ Compiled in 176ms
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 135ms (next.js: 72ms, application-code: 63ms)
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 364ms (next.js: 131ms, application-code: 233ms)
+[browser] In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+      <div>
+      <MobileDrawer>
+      <div>
+      <div className="flex-1 min...">
+        <ChatView conversationId="bf360475-3...">
+          <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+            <div>
+            <div>
+            <div ref={{...}} onScroll={function handleScroll} className="messages-c...">
+              <div className="chat-content">
+                <div className="message-list">
+                  <div>
+                  <div className="message-as..." style={{...}}>
+                    <div className="">
+                      <MarkdownRenderer content={"![Genera..."} isStreaming={false}>
+                        <div className="markdown-c...">
+                          <Markdown remarkPlugins={[...]} rehypePlugins={[...]} components={{...}}>
+                            <p node={{type:"element", ...}}>
+>                             <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">
+                                <img src={"https://..."} alt="Generated ..." node={{type:"element", ...}}>
+                                  <GeneratedImageCard src={"https://..."} alt="Generated ...">
+                                    <div className="generated-...">
+>                                     <div className="relative group">
+                                      ...
+                            ...
+                    ...
+                  ...
+                  ...
+            ...
+ 
+[browser] <p> cannot contain a nested <div>.
+See this log for the ancestor stack trace. 
+ GET /chat/bf360475-36e9-46fc-b24e-1a1c7e5f03da 200 in 222ms (next.js: 83ms, application-code: 139ms)
+[browser] In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+      <div>
+      <MobileDrawer>
+      <div>
+      <div className="flex-1 min...">
+        <ChatView conversationId="bf360475-3...">
+          <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+            <div>
+            <div>
+            <div ref={{...}} onScroll={function handleScroll} className="messages-c...">
+              <div className="chat-content">
+                <div className="message-list">
+                  <div>
+                  <div className="message-as..." style={{...}}>
+                    <div className="">
+                      <MarkdownRenderer content={"![Genera..."} isStreaming={false}>
+                        <div className="markdown-c...">
+                          <Markdown remarkPlugins={[...]} rehypePlugins={[...]} components={{...}}>
+                            <p node={{type:"element", ...}}>
+>                             <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">
+                                <img src={"https://..."} alt="Generated ..." node={{type:"element", ...}}>
+                                  <GeneratedImageCard src={"https://..."} alt="Generated ...">
+                                    <div className="generated-...">
+>                                     <div className="relative group">
+                                      ...
+                            ...
+                    ...
+                  ...
+                  ...
+            ...
+ 
+[browser] <p> cannot contain a nested <div>.
+See this log for the ancestor stack trace. 
+ GET /chat 200 in 135ms (next.js: 87ms, application-code: 48ms)
+[browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+ GET /chat 200 in 144ms (next.js: 10ms, application-code: 134ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/chat" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="chat/page.tsx">
+              <SegmentTrieNode>
+              <ClientPageRoot Component={function ChatPage} serverProvidedParams={{...}}>
+                <ChatPage params={Promise} searchParams={Promise}>
+                  <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+                    <div>
+                    <MobileDrawer>
+                    <div>
+                    <div className="flex-1 min...">
+                      <ChatView>
+                        <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+                          <div>
+                          <div>
+                          <div>
+                          <div>
+                          <div className="composer-w...">
+                            <div className="composer">
+                              <div
+                                className="relative"
+-                               style={{overflow-x:"visible",overflow-y:"visible"}}
+                              >
+                              ...
+                            ...
+                          ...
+            ...
+          ...
+ 
+[browser] In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+      <div>
+      <MobileDrawer>
+      <div>
+      <div className="flex-1 min...">
+        <ChatView>
+          <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+            <div>
+            <div>
+            <div ref={{...}} onScroll={function handleScroll} className="messages-c...">
+              <div className="chat-content">
+                <div className="message-list">
+                  <div>
+                  <div className="message-as..." style={{...}}>
+                    <div className="">
+                      <MarkdownRenderer content={"![Genera..."} isStreaming={false}>
+                        <div className="markdown-c...">
+                          <Markdown remarkPlugins={[...]} rehypePlugins={[...]} components={{...}}>
+                            <p node={{type:"element", ...}}>
+>                             <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">
+                                <img src={"https://..."} alt="Generated ..." node={{type:"element", ...}}>
+                                  <GeneratedImageCard src={"https://..."} alt="Generated ...">
+                                    <div className="generated-...">
+>                                     <div className="relative group">
+                                      ...
+                                ...
+                            ...
+                    ...
+                  ...
+            ...
+ 
+[browser] <p> cannot contain a nested <div>.
+See this log for the ancestor stack trace. 
+ GET /chat/fb56b421-fad3-4f23-8224-4721d4d587aa 200 in 138ms (next.js: 37ms, application-code: 101ms)
+[browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+ GET /chat 200 in 151ms (next.js: 51ms, application-code: 100ms)
+ GET /chat/5ceaae2b-5959-43e3-8dc3-2b701c359a15 200 in 118ms (next.js: 51ms, application-code: 68ms)
+ GET /chat/5ceaae2b-5959-43e3-8dc3-2b701c359a15 200 in 174ms (next.js: 36ms, application-code: 137ms)
+[browser] In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="app-shell" onTouchStart={function onTouchStart} onTouchMove={function onTouchMove} ...>
+      <div>
+      <MobileDrawer>
+      <div>
+      <div className="flex-1 min...">
+        <ChatView conversationId="5ceaae2b-5...">
+          <div className="chat-area" onDragOver={function onDragOver} onDragLeave={function onDragLeave} ...>
+            <div>
+            <div>
+            <div ref={{...}} onScroll={function handleScroll} className="messages-c...">
+              <div className="chat-content">
+                <div className="message-list">
+                  <div>
+                  <div className="message-as..." style={{...}}>
+                    <div className="">
+                      <MarkdownRenderer content={"![Genera..."} isStreaming={false}>
+                        <div className="markdown-c...">
+                          <Markdown remarkPlugins={[...]} rehypePlugins={[...]} components={{...}}>
+                            <p node={{type:"element", ...}}>
+>                             <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">
+                                <img src={"https://..."} alt="Generated ..." node={{type:"element", ...}}>
+                                  <GeneratedImageCard src={"https://..."} alt="Generated ...">
+                                    <div className="generated-...">
+>                                     <div className="relative group">
+                                      ...
+                            ...
+                    ...
+                  ...
+            ...
+ 
+[browser] <p> cannot contain a nested <div>.
+See this log for the ancestor stack trace. 

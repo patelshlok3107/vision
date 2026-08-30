@@ -79,14 +79,21 @@ ASGI_APPLICATION = 'config.asgi.application'
 # -------------------------------------------------------------------------
 # Channels
 # -------------------------------------------------------------------------
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [config('REDIS_URL', default='redis://localhost:6379')],
+if config('USE_SQLITE', default=False, cast=bool):
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
         },
-    },
-}
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [config('REDIS_URL', default='redis://localhost:6379')],
+            },
+        },
+    }
 
 # -------------------------------------------------------------------------
 # Database
@@ -321,3 +328,17 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# -------------------------------------------------------------------------
+# Image generation — high-quality, env-configurable
+# -------------------------------------------------------------------------
+IMAGE_PROVIDER = config('IMAGE_PROVIDER', default='')
+IMAGE_MODEL = config('IMAGE_MODEL', default='')
+IMAGE_QUALITY = config('IMAGE_QUALITY', default='high')
+IMAGE_SIZE = config('IMAGE_SIZE', default='1024x1024')
+IMAGE_ENHANCE = config('IMAGE_ENHANCE', default='auto')
+OPENAI_IMAGE_MODEL = config('OPENAI_IMAGE_MODEL', default=config('IMAGE_MODEL', default='gpt-image-1'))
+HUGGINGFACE_API_KEY = config('HUGGINGFACE_API_KEY', default=config('HF_API_KEY', default=''))
+HF_API_KEY = HUGGINGFACE_API_KEY
+POLLINATIONS_API_KEY = config('POLLINATIONS_API_KEY', default=config('POLLINATIONS_KEY', default=''))
+POLLINATIONS_KEY = POLLINATIONS_API_KEY
