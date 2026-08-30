@@ -129,6 +129,11 @@ class OllamaClient:
 
         try:
             resp = self.session.post(url, json=payload, timeout=effective_timeout, stream=stream)
+            # Force UTF-8 for streaming SSE — prevents latin1 fallback (â) when Content-Type lacks charset
+            try:
+                resp.encoding = 'utf-8'
+            except:
+                pass
         except requests.exceptions.ConnectionError as exc:
             raise OllamaUnavailableError(
                 f"VISION can't connect to Ollama at {self.base_url}. "
@@ -146,7 +151,13 @@ class OllamaClient:
             model = payload.get("model", "unknown")
             raise OllamaModelNotFoundError(model)
         if not resp.ok:
-            raise OllamaError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:300]}")
+            # Ensure error body decoded as utf-8
+            try:
+                resp.encoding = 'utf-8'
+                body = resp.text[:800]
+            except:
+                body = resp.content[:800].decode('utf-8', errors='replace')
+            raise OllamaError(f"Ollama returned HTTP {resp.status_code}: {body}")
         return resp
 
     def _get(self, path: str, timeout: float = 10):
@@ -375,8 +386,15 @@ class OllamaClient:
             if stream:
                 # Groq streaming returns SSE; we wrap to mimic Ollama's resp.iter_lines
                 resp = requests.post(url, json=payload, headers=headers, stream=True, timeout=(10, None))
+                # Force UTF-8 — Groq sends text/event-stream without charset, requests would default to ISO-8859-1 (latin1) → mojibake
+                resp.encoding = 'utf-8'
                 if not resp.ok:
-                    body = resp.text[:800]
+                    # Ensure error body also decoded as utf-8
+                    try:
+                        resp.encoding = 'utf-8'
+                        body = resp.text[:800]
+                    except:
+                        body = resp.content[:800].decode('utf-8', errors='replace')
                     if resp.status_code == 401:
                         raise OllamaError(f"VISION couldn't authenticate with the AI service (401). Check GROQ_API_KEY/OPENAI_API_KEY. Body: {body}")
                     if resp.status_code == 429:
@@ -385,35 +403,45 @@ class OllamaClient:
                 # Wrap SSE lines into Ollama-like JSON lines for caller
                 class GroqStreamWrapper:
                     def __init__(self, r): self.r = r
+                        # Ensure wrapper also forces utf-8 for any text access
                     def iter_lines(self, **kw):
-                        for line in self.r.iter_lines(**kw):
+                        # Force raw bytes handling to avoid requests' latin1 fallback
+                        decode_unicode = kw.get('decode_unicode', False)
+                        # Always iterate raw bytes and decode as utf-8 ourselves
+                        for line in self.r.iter_lines(decode_unicode=False):
                             if not line: continue
-                            # handle both bytes and str (decode_unicode=True gives str)
-                            if isinstance(line, bytes):
-                                if not line.startswith(b"data: "): continue
-                                data = line[6:]
-                                if data == b"[DONE]": break
-                                try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
-                                except: continue
-                            else:
-                                if not line.startswith("data: "): continue
-                                data = line[6:]
-                                if data == "[DONE]": break
-                                try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
-                                except: continue
-                            if tok: yield json.dumps({"message":{"content":tok}}).encode()
+                            # line is bytes — decode as utf-8
+                            try:
+                                line_str = line.decode('utf-8')
+                            except:
+                                line_str = line.decode('utf-8', errors='replace')
+                            if not line_str.startswith("data: "): continue
+                            data = line_str[6:]
+                            if data == "[DONE]": break
+                            try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
+                            except: continue
+                            # Yield utf-8 encoded bytes (caller expects bytes, decodes as utf-8)
+                            if tok: yield json.dumps({"message":{"content":tok}}, ensure_ascii=False).encode('utf-8')
                     def json(self): return {}
                     @property
                     def ok(self): return self.r.ok
                     @property
                     def status_code(self): return self.r.status_code
                     @property
-                    def text(self): return self.r.text
+                    def text(self):
+                        try:
+                            return self.r.content.decode('utf-8')
+                        except:
+                            return self.r.text
                 return GroqStreamWrapper(resp)
             else:
                 resp = requests.post(url, json=payload, headers=headers, timeout=60)
+                resp.encoding = 'utf-8'
                 if not resp.ok:
-                    body = resp.text[:800]
+                    try:
+                        body = resp.text[:800]
+                    except:
+                        body = resp.content[:800].decode('utf-8', errors='replace')
                     if resp.status_code == 401:
                         raise OllamaError(f"VISION couldn't authenticate with the AI service (401). Body: {body}")
                     if resp.status_code == 429:

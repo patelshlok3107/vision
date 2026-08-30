@@ -136,23 +136,23 @@ class AIChatView(APIView):
                         from .attachments_views import validate_image, process_image
                         err = validate_image(f)
                         if err:
-                            yield _j.dumps({"type":"error","content": err}) + "\n"
-                            yield _j.dumps({"type":"done","conversation_id": None}) + "\n"
+                            yield _j.dumps({"type":"error","content": err}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"done","conversation_id": None}, ensure_ascii=False) + "\n"
                             return
                         try:
                             buf, w, h = process_image(f)
                             buf.seek(0)
                             b64s.append(_b64.b64encode(buf.read()).decode('utf-8'))
                         except Exception as ve:
-                            yield _j.dumps({"type":"error","content": str(ve)}) + "\n"
-                            yield _j.dumps({"type":"done","conversation_id": None}) + "\n"
+                            yield _j.dumps({"type":"error","content": str(ve)}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"done","conversation_id": None}, ensure_ascii=False) + "\n"
                             return
                     has_img = len(b64s) > 0
                     if has_img:
                         ok, err_msg = ollama_client.validate_vision_model()
                         if not ok:
-                            yield _j.dumps({"type":"error","content": err_msg}) + "\n"
-                            yield _j.dumps({"type":"done","conversation_id": None}) + "\n"
+                            yield _j.dumps({"type":"error","content": err_msg}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"done","conversation_id": None}, ensure_ascii=False) + "\n"
                             return
                         system_prompt = VISION_SYSTEM_PROMPT.format(today=_tz.now().isoformat())
                     else:
@@ -172,39 +172,46 @@ class AIChatView(APIView):
                     try:
                         from ai.services.image_gen import is_image_generation_request as _gi, generate_image as _ggen
                         if _gi(message, has_image=has_img) and not has_img:
-                            yield _j.dumps({"type":"stream_start","content":{"path":"image_generation","mode":"guest"}}) + "\n"
-                            yield _j.dumps({"type":"status","content":"Creating your image..."}) + "\n"
-                            yield _j.dumps({"type":"image_generating","content":{"prompt": message}}) + "\n"
-                            yield _j.dumps({"type":"status","content":"Finishing details..."}) + "\n"
+                            yield _j.dumps({"type":"stream_start","content":{"path":"image_generation","mode":"guest"}}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"status","content":"Creating your image..."}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"image_generating","content":{"prompt": message}}, ensure_ascii=False) + "\n"
+                            yield _j.dumps({"type":"status","content":"Finishing details..."}, ensure_ascii=False) + "\n"
                             try:
                                 _res = _ggen(message, width=1024, height=1024)
                                 _url = _res["url"]; _pu = _res.get("prompt_used", message)
-                                yield _j.dumps({"type":"image","content":{"url": _url, "prompt": _pu}}) + "\n"
-                                yield _j.dumps({"type":"token","content": f"![Generated Image]({_url})\n\n*Prompt: {_pu[:400]}*"}) + "\n"
+                                yield _j.dumps({"type":"image","content":{"url": _url, "prompt": _pu}}, ensure_ascii=False) + "\n"
+                                yield _j.dumps({"type":"token","content": f"![Generated Image]({_url}, ensure_ascii=False)\n\n*Prompt: {_pu[:400]}*"}) + "\n"
                                 import uuid as _uu2
-                                yield _j.dumps({"type":"done","conversation_id": f"guest_{_uu2.uuid4().hex[:8]}"}) + "\n"
+                                yield _j.dumps({"type":"done","conversation_id": f"guest_{_uu2.uuid4().hex[:8]}"}, ensure_ascii=False) + "\n"
                                 return
                             except Exception as _ie:
-                                yield _j.dumps({"type":"error","content":"Couldn't generate the image. Please try again."}) + "\n"
-                                yield _j.dumps({"type":"done","conversation_id": None}) + "\n"
+                                yield _j.dumps({"type":"error","content":"Couldn't generate the image. Please try again."}, ensure_ascii=False) + "\n"
+                                yield _j.dumps({"type":"done","conversation_id": None}, ensure_ascii=False) + "\n"
                                 return
                     except: pass
-                    yield _j.dumps({"type":"stream_start","content":{"path":"guest","mode":"guest"}}) + "\n"
-                    yield _j.dumps({"type":"status","content":"VISION is thinking..."}) + "\n"
+                    yield _j.dumps({"type":"stream_start","content":{"path":"guest","mode":"guest"}}, ensure_ascii=False) + "\n"
+                    yield _j.dumps({"type":"status","content":"VISION is thinking..."}, ensure_ascii=False) + "\n"
                     try:
                         resp_stream = ollama_client.chat(msgs, temperature=0.4, stream=True, num_predict=512, num_ctx=2048, is_vision=has_img)
-                        for line in resp_stream.iter_lines(decode_unicode=True):
+                        for line in resp_stream.iter_lines(decode_unicode=False):
+                            if isinstance(line, bytes):
+                                try:
+                                    line = line.decode("utf-8")
+                                except:
+                                    line = line.decode("utf-8", errors="replace")
                             if not line: continue
                             try: chunk = _j.loads(line)
                             except: continue
                             token = chunk.get("message",{}).get("content","")
                             if token:
-                                yield _j.dumps({"type":"token","content": token}) + "\n"
+                                yield _j.dumps({"type":"token","content": token}, ensure_ascii=False) + "\n"
                         import uuid as _uu
-                        yield _j.dumps({"type":"done","conversation_id": f"guest_{_uu.uuid4().hex[:8]}"}) + "\n"
+                        yield _j.dumps({"type":"done","conversation_id": f"guest_{_uu.uuid4().hex[:8]}"}, ensure_ascii=False) + "\n"
                     except Exception as exc:
-                        yield _j.dumps({"type":"error","content": str(exc)[:500]}) + "\n"
-                resp = StreamingHttpResponse(_guest_sync_stream(), content_type='application/x-ndjson')
+                        yield _j.dumps({"type":"error","content": str(exc)[:500]}, ensure_ascii=False) + "\n"
+                resp = StreamingHttpResponse(_guest_sync_stream(), content_type='application/x-ndjson; charset=utf-8')
+                resp['Content-Type'] = 'application/x-ndjson; charset=utf-8'
+                resp['Content-Type'] = 'application/x-ndjson; charset=utf-8'
                 resp['Cache-Control'] = 'no-cache, no-transform'
                 resp['X-Accel-Buffering'] = 'no'
                 resp['X-Request-ID'] = _req_id
@@ -262,7 +269,8 @@ class AIChatView(APIView):
         try:
             _logger.info("[CHAT:%s] Starting agent stream mode=%s memory=%s overrides=%s", _req_id, mode, memory_enabled, overrides)
             stream_gen = agent.chat_stream(message, conversation=conversation, attachment_ids=attachment_ids, mode=mode, memory_enabled=memory_enabled, request_id=_req_id, t0=_t0, overrides=overrides)
-            resp = StreamingHttpResponse(stream_gen, content_type='application/x-ndjson')
+            resp = StreamingHttpResponse(stream_gen, content_type='application/x-ndjson; charset=utf-8')
+            resp['Content-Type'] = 'application/x-ndjson; charset=utf-8'
             # Critical: prevent any proxy or middleware from buffering the stream
             resp['Cache-Control'] = 'no-cache, no-transform'
             resp['X-Accel-Buffering'] = 'no'
@@ -451,9 +459,10 @@ async def ai_chat_async_view(request):
             ok, err_msg = ollama_client.validate_vision_model()
             if not ok:
                 async def _guest_err():
-                    yield _json.dumps({"type": "error", "content": err_msg}) + "\n"
-                    yield _json.dumps({"type": "done", "conversation_id": None}) + "\n"
-                resp = StreamingHttpResponse(_guest_err(), content_type='application/x-ndjson')
+                    yield _json.dumps({"type": "error", "content": err_msg}, ensure_ascii=False) + "\n"
+                    yield _json.dumps({"type": "done", "conversation_id": None}, ensure_ascii=False) + "\n"
+                resp = StreamingHttpResponse(_guest_err(), content_type='application/x-ndjson; charset=utf-8')
+                resp['Content-Type'] = 'application/x-ndjson; charset=utf-8'
                 resp['Cache-Control'] = 'no-cache, no-transform'
                 resp['X-Accel-Buffering'] = 'no'
                 resp['X-Request-ID'] = _req_id
@@ -497,24 +506,25 @@ async def ai_chat_async_view(request):
                     if _base and len(message)<80 and any(kw in message.lower() for kw in ["make it","winter","snowy","night"]):
                         message = f"{_base}, {message}"
                 async def _guest_img_stream():
-                    yield _json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "guest"}}) + "\n"
-                    yield _json.dumps({"type": "status", "content": "Creating your image..."}) + "\n"
-                    yield _json.dumps({"type": "image_generating", "content": {"prompt": message}}) + "\n"
-                    yield _json.dumps({"type": "status", "content": "Finishing details..."}) + "\n"
+                    yield _json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "guest"}}, ensure_ascii=False) + "\n"
+                    yield _json.dumps({"type": "status", "content": "Creating your image..."}, ensure_ascii=False) + "\n"
+                    yield _json.dumps({"type": "image_generating", "content": {"prompt": message}}, ensure_ascii=False) + "\n"
+                    yield _json.dumps({"type": "status", "content": "Finishing details..."}, ensure_ascii=False) + "\n"
                     try:
                         loop = asyncio.get_event_loop()
                         def _do_gen(): return _g_gen(message, width=1024, height=1024)
                         _res = await loop.run_in_executor(None, _do_gen)
                         _url = _res["url"]
                         _prompt_used = _res.get("prompt_used", message)
-                        yield _json.dumps({"type": "image", "content": {"url": _url, "prompt": _prompt_used}}) + "\n"
-                        yield _json.dumps({"type": "token", "content": f"![Generated Image]({_url})\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
+                        yield _json.dumps({"type": "image", "content": {"url": _url, "prompt": _prompt_used}}, ensure_ascii=False) + "\n"
+                        yield _json.dumps({"type": "token", "content": f"![Generated Image]({_url}, ensure_ascii=False)\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
                         import uuid as _uu
-                        yield _json.dumps({"type": "done", "conversation_id": f"guest_{_uu.uuid4().hex[:8]}"}) + "\n"
+                        yield _json.dumps({"type": "done", "conversation_id": f"guest_{_uu.uuid4().hex[:8]}"}, ensure_ascii=False) + "\n"
                     except Exception as _ie:
-                        yield _json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}) + "\n"
-                        yield _json.dumps({"type": "done", "conversation_id": None}) + "\n"
-                resp = StreamingHttpResponse(_guest_img_stream(), content_type='application/x-ndjson')
+                        yield _json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}, ensure_ascii=False) + "\n"
+                        yield _json.dumps({"type": "done", "conversation_id": None}, ensure_ascii=False) + "\n"
+                resp = StreamingHttpResponse(_guest_img_stream(), content_type='application/x-ndjson; charset=utf-8')
+                resp['Content-Type'] = 'application/x-ndjson; charset=utf-8'
                 resp['Cache-Control'] = 'no-cache, no-transform'
                 resp['X-Accel-Buffering'] = 'no'
                 resp['X-Request-ID'] = _req_id
@@ -528,8 +538,8 @@ async def ai_chat_async_view(request):
 
         async def _guest_stream():
             # stream_start
-            yield _json.dumps({"type": "stream_start", "content": {"path": "guest", "mode": "guest"}}) + "\n"
-            yield _json.dumps({"type": "status", "content": "VISION is thinking..."}) + "\n"
+            yield _json.dumps({"type": "stream_start", "content": {"path": "guest", "mode": "guest"}}, ensure_ascii=False) + "\n"
+            yield _json.dumps({"type": "status", "content": "VISION is thinking..."}, ensure_ascii=False) + "\n"
             try:
                 # Run Ollama streaming in thread
                 loop = asyncio.get_event_loop()
@@ -538,7 +548,12 @@ async def ai_chat_async_view(request):
                 resp_stream = await loop.run_in_executor(None, _open_stream)
                 first = True
                 full = []
-                for line in resp_stream.iter_lines(decode_unicode=True):
+                for line in resp_stream.iter_lines(decode_unicode=False):
+                    if isinstance(line, bytes):
+                        try:
+                            line = line.decode("utf-8")
+                        except:
+                            line = line.decode("utf-8", errors="replace")
                     if not line:
                         continue
                     try:
@@ -551,20 +566,20 @@ async def ai_chat_async_view(request):
                     if first:
                         first = False
                     full.append(token)
-                    yield _json.dumps({"type": "token", "content": token}) + "\n"
+                    yield _json.dumps({"type": "token", "content": token}, ensure_ascii=False) + "\n"
                     await asyncio.sleep(0)
                 # done with guest id
                 import uuid as _uuid
                 guest_conv_id = f"guest_{_uuid.uuid4().hex[:8]}"
-                yield _json.dumps({"type": "done", "conversation_id": guest_conv_id}) + "\n"
+                yield _json.dumps({"type": "done", "conversation_id": guest_conv_id}, ensure_ascii=False) + "\n"
             except Exception as exc:
                 err = str(exc)
                 if "connect" in err.lower() or "ollama" in err.lower():
-                    yield _json.dumps({"type": "error", "content": "VISION is temporarily unavailable. Please try again."}) + "\n"
+                    yield _json.dumps({"type": "error", "content": "VISION is temporarily unavailable. Please try again."}, ensure_ascii=False) + "\n"
                 else:
-                    yield _json.dumps({"type": "error", "content": err[:500]}) + "\n"
+                    yield _json.dumps({"type": "error", "content": err[:500]}, ensure_ascii=False) + "\n"
 
-        resp = StreamingHttpResponse(_guest_stream(), content_type='application/x-ndjson')
+        resp = StreamingHttpResponse(_guest_stream(), content_type='application/x-ndjson; charset=utf-8')
         resp['Cache-Control'] = 'no-cache, no-transform'
         resp['X-Accel-Buffering'] = 'no'
         resp['X-Request-ID'] = _req_id
@@ -629,7 +644,7 @@ async def ai_chat_async_view(request):
             yield chunk
             await asyncio.sleep(0)
 
-    resp = StreamingHttpResponse(_async_stream(), content_type='application/x-ndjson')
+    resp = StreamingHttpResponse(_async_stream(), content_type='application/x-ndjson; charset=utf-8')
     resp['Cache-Control'] = 'no-cache, no-transform'
     resp['X-Accel-Buffering'] = 'no'
     resp['X-Request-ID'] = _req_id
@@ -899,4 +914,3 @@ class AIRouterView(APIView):
             return Response(data)
         except Exception as exc:
             return Response({"error": str(exc)}, status=500)
-

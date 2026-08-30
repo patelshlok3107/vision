@@ -135,7 +135,17 @@ if config('USE_SQLITE', default=False, cast=bool):
         'NAME': str(BASE_DIR / "db.sqlite3"),
     }
 
+# Force UTF-8 for Postgres production — prevents latin1 mis-decoding of emojis/accents
+if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"].setdefault("client_encoding", "UTF8")
+    DATABASES["default"]["OPTIONS"].setdefault("options", "-c client_encoding=UTF8")
+
 AUTH_USER_MODEL = 'users.User'
+
+# Force UTF-8 for all HTTP responses
+DEFAULT_CHARSET = 'utf-8'
+FILE_CHARSET = 'utf-8'
 
 # -------------------------------------------------------------------------
 # Django REST Framework + JWT

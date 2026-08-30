@@ -764,7 +764,7 @@ class VisionAgent:
         t_stream_done = 0
 
         if not user_message.strip() and not attachment_ids:
-            yield json.dumps({"type": "error", "content": "Please send a message or image."}) + "\n"
+            yield json.dumps({"type": "error", "content": "Please send a message or image."}, ensure_ascii=False) + "\n"
             return
 
         # ── 1. PARALLEL PRE-FETCH + INTENT CLASSIFICATION ────────────────────
@@ -780,10 +780,10 @@ class VisionAgent:
         if has_image:
             ok, err_msg = client.validate_vision_model()
             if not ok:
-                yield json.dumps({"type": "error", "content": err_msg}) + "\n"
-                yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                yield json.dumps({"type": "error", "content": err_msg}, ensure_ascii=False) + "\n"
+                yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
                 return
-            yield json.dumps({"type": "status", "content": "VISION is analyzing the image..."}) + "\n"
+            yield json.dumps({"type": "status", "content": "VISION is analyzing the image..."}, ensure_ascii=False) + "\n"
 
         # ── INTENT CLASSIFICATION (before expensive fetches) ────────────────
         classification = classify_intent(user_message, has_image, mode)
@@ -849,8 +849,8 @@ class VisionAgent:
         logger.info("[VISION] has_image=%s mode=%s resolved=%s classif=%s", has_image, mode, resolved_mode, classification)
 
         if has_image and not routed_model:
-            yield json.dumps({"type": "error", "content": "No vision-capable Ollama model is configured. Configure OLLAMA_VISION_MODEL in your environment settings. Example: OLLAMA_VISION_MODEL=llava"}) + "\n"
-            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+            yield json.dumps({"type": "error", "content": "No vision-capable Ollama model is configured. Configure OLLAMA_VISION_MODEL in your environment settings. Example: OLLAMA_VISION_MODEL=llava"}, ensure_ascii=False) + "\n"
+            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
             return
 
         # ── IMAGE GENERATION INTERCEPT ──────────────────────────────────────
@@ -878,16 +878,16 @@ class VisionAgent:
                 try:
                     self._save_message(conversation, "user", user_message, attachment_ids=attachment_ids)
                 except: pass
-                yield json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "image"}}) + "\n"
-                yield json.dumps({"type": "status", "content": "Creating your image..."}) + "\n"
+                yield json.dumps({"type": "stream_start", "content": {"path": "image_generation", "mode": "image"}}, ensure_ascii=False) + "\n"
+                yield json.dumps({"type": "status", "content": "Creating your image..."}, ensure_ascii=False) + "\n"
                 # Build prompt: if variation, combine
                 _prompt = user_message
                 if _need_variation_check and _base_image_prompt:
                     _prompt = f"{_base_image_prompt}, {user_message.strip().lstrip('.')}"
                 # Yield skeleton trigger
-                yield json.dumps({"type": "image_generating", "content": {"prompt": _prompt, "status": "generating"}}) + "\n"
+                yield json.dumps({"type": "image_generating", "content": {"prompt": _prompt, "status": "generating"}}, ensure_ascii=False) + "\n"
                 # Slight delay to show shimmer, then second status
-                yield json.dumps({"type": "status", "content": "Finishing details..."}) + "\n"
+                yield json.dumps({"type": "status", "content": "Finishing details..."}, ensure_ascii=False) + "\n"
                 try:
                     _res = _gen_img(_prompt, width=1024, height=1024)
                     _url = _res["url"]
@@ -900,14 +900,14 @@ class VisionAgent:
                         logger.warning("[ImageGen] save failed: %s", _se)
                     # Yield image result as markdown token + dedicated image event
                     yield json.dumps({"type": "image", "content": {"url": _url, "prompt": _prompt_used, "provider": _res.get("provider","")}} ) + "\n"
-                    yield json.dumps({"type": "token", "content": f"![Generated Image]({_url})\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
-                    yield json.dumps({"type": "diagnostics", "content": {"Request Start": 0, "Images": t_images_done, "Classify": t_classify, "Mode": "image_generation", "Model": _res.get("provider","pollinations"), "Path": "image_generation"}}) + "\n"
-                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                    yield json.dumps({"type": "token", "content": f"![Generated Image]({_url}, ensure_ascii=False)\n\n*Prompt: {_prompt_used[:400]}*"}) + "\n"
+                    yield json.dumps({"type": "diagnostics", "content": {"Request Start": 0, "Images": t_images_done, "Classify": t_classify, "Mode": "image_generation", "Model": _res.get("provider","pollinations"), "Path": "image_generation"}}, ensure_ascii=False) + "\n"
+                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
                     return
                 except Exception as _ie:
                     logger.error("[ImageGen] chat intercept failed: %s", _ie)
-                    yield json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}) + "\n"
-                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                    yield json.dumps({"type": "error", "content": "Couldn't generate the image. Please try again."}, ensure_ascii=False) + "\n"
+                    yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
                     return
         except Exception as _ige:
             logger.warning("[ImageGen] intercept check failed: %s", _ige)
@@ -1001,7 +1001,12 @@ class VisionAgent:
                     repeat_penalty=classification.get("repeat_penalty"),
                     keep_alive=ka,
                 )
-                for line in resp_stream.iter_lines(decode_unicode=True):
+                for line in resp_stream.iter_lines(decode_unicode=False):
+                    if isinstance(line, bytes):
+                        try:
+                            line = line.decode("utf-8")
+                        except:
+                            line = line.decode("utf-8", errors="replace")
                     if not line:
                         continue
                     if ttft is None:
@@ -1017,7 +1022,7 @@ class VisionAgent:
                         continue
                     final_response_parts.append(token)
                     # Immediately yield tokens — ZERO buffering
-                    yield json.dumps({"type": "token", "content": token}) + "\n"
+                    yield json.dumps({"type": "token", "content": token}, ensure_ascii=False) + "\n"
             except Exception as _ue:
                 err = str(_ue)
                 if "authenticate" in err.lower() or "401" in err:
@@ -1032,7 +1037,7 @@ class VisionAgent:
                     msg = "VISION couldn't reach the AI service. The backend AI endpoint is unreachable."
                 else:
                     msg = f"VISION couldn't complete that request: {err[:400]}"
-                yield json.dumps({"type": "error", "content": msg}) + "\n"
+                yield json.dumps({"type": "error", "content": msg}, ensure_ascii=False) + "\n"
                 t_stream_done = int((time.perf_counter() - t_start) * 1000)
                 yield json.dumps({"type": "diagnostics", "content": {
                     "Request Start": 0,
@@ -1048,7 +1053,7 @@ class VisionAgent:
                     "Model": routed_model or "default",
                     "Path": "ultra_fast",
                 }}) + "\n"
-                yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+                yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
                 return
 
             t_stream_done = int((time.perf_counter() - t_start) * 1000)
@@ -1093,7 +1098,7 @@ class VisionAgent:
                 "Num Predict": classification.get("num_predict"),
             }}) + "\n"
 
-            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
             return
 
         # ── END ULTRA_FAST PATH ──────────────────────────────────────────────
@@ -1224,7 +1229,9 @@ class VisionAgent:
                     repeat_penalty=classification.get("repeat_penalty"),
                     keep_alive=ka,
                 )
-                for line in resp_stream.iter_lines(decode_unicode=True):
+                for line in resp_stream.iter_lines(decode_unicode=False):
+                    if isinstance(line, bytes):
+                        line = line.decode("utf-8", errors="replace")
                     if line:
                         if ttft is None:
                             ttft = (time.perf_counter() - t_start) * 1000
@@ -1237,7 +1244,7 @@ class VisionAgent:
                         token = chunk.get("message", {}).get("content", "")
                         if token:
                             final_response_parts.append(token)
-                            yield json.dumps({"type": "token", "content": token}) + "\n"
+                            yield json.dumps({"type": "token", "content": token}, ensure_ascii=False) + "\n"
             except Exception as _se:
                 err = str(_se)
                 if "authenticate" in err.lower() or "401" in err:
@@ -1250,7 +1257,7 @@ class VisionAgent:
                     msg2 = f"VISION couldn't reach the AI service: {err[:300]}"
                 else:
                     msg2 = f"VISION couldn't complete that request: {err[:400]}"
-                yield json.dumps({"type": "error", "content": msg2}) + "\n"
+                yield json.dumps({"type": "error", "content": msg2}, ensure_ascii=False) + "\n"
 
             t_stream_done = int((time.perf_counter() - t_start) * 1000)
             final_response = "".join(final_response_parts)
@@ -1285,7 +1292,7 @@ class VisionAgent:
                 "Path": "simple",
             }}) + "\n"
 
-            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
             return
 
         # Heavy path — real streaming for immediate TTFT
@@ -1301,14 +1308,14 @@ class VisionAgent:
 
         if effective_has_image:
             logger.info("[OLLAMA] Sending image + prompt to vision model %s", routed_model)
-            yield json.dumps({"type": "status", "content": "VISION is looking at the image..."}) + "\n"
+            yield json.dumps({"type": "status", "content": "VISION is looking at the image..."}, ensure_ascii=False) + "\n"
         elif resolved_mode == "code":
             logger.info("[OLLAMA] Sending code prompt to model %s (FAST CODE mode=%s)", routed_model, resolved_mode)
             # No "Thinking..." for code — stream immediately for 5s target
-            yield json.dumps({"type": "status", "content": "⚡ VISION Code ● Generating..."}) + "\n"
+            yield json.dumps({"type": "status", "content": "⚡ VISION Code ● Generating..."}, ensure_ascii=False) + "\n"
         else:
             logger.info("[OLLAMA] Sending text prompt to model %s (mode=%s)", routed_model, resolved_mode)
-            yield json.dumps({"type": "status", "content": "Thinking..."}) + "\n"
+            yield json.dumps({"type": "status", "content": "Thinking..."}, ensure_ascii=False) + "\n"
         t_ollama_sent = int((time.perf_counter() - t_start) * 1000)
         logger.info("[PERF] Ollama request started: %dms model=%s", t_ollama_sent, routed_model)
         suppress_first_stream = resolved_mode in ("agent",)
@@ -1342,7 +1349,9 @@ class VisionAgent:
                 repeat_penalty=classification.get("repeat_penalty"),
                 keep_alive=ka,
             )
-            for line in resp_stream.iter_lines(decode_unicode=True):
+            for line in resp_stream.iter_lines(decode_unicode=False):
+                if isinstance(line, bytes):
+                    line = line.decode("utf-8", errors="replace")
                 if not line:
                     continue
                 if ttft is None:
@@ -1368,12 +1377,12 @@ class VisionAgent:
                         # FLUSH IMMEDIATELY at 2+ chars or confirmed non-JSON start — ZERO artificial delay
                         is_tool_candidate = False
                         for p in pending_yield:
-                            yield json.dumps({"type": "token", "content": p}) + "\n"
+                            yield json.dumps({"type": "token", "content": p}, ensure_ascii=False) + "\n"
                         pending_yield = []
-                        yield json.dumps({"type": "token", "content": token}) + "\n"
+                        yield json.dumps({"type": "token", "content": token}, ensure_ascii=False) + "\n"
                         continue
                 if is_tool_candidate is False:
-                    yield json.dumps({"type": "token", "content": token}) + "\n"
+                    yield json.dumps({"type": "token", "content": token}, ensure_ascii=False) + "\n"
                 else:
                     pending_yield.append(token)
             raw_response = "".join(raw_parts)
@@ -1385,7 +1394,7 @@ class VisionAgent:
                 pass
             elif pending_yield:
                 for p in pending_yield:
-                    yield json.dumps({"type": "token", "content": p}) + "\n"
+                    yield json.dumps({"type": "token", "content": p}, ensure_ascii=False) + "\n"
         except Exception as exc:
             logger.error("[OLLAMA] Error: %s", exc)
             err = str(exc)
@@ -1403,7 +1412,7 @@ class VisionAgent:
                 em = f"VISION's configured AI model is unavailable: {err[:250]}"
             else:
                 em = f"VISION couldn't complete the request: {err[:400]}"
-            yield json.dumps({"type": "error", "content": em}) + "\n"
+            yield json.dumps({"type": "error", "content": em}, ensure_ascii=False) + "\n"
             yield json.dumps({"type": "diagnostics", "content": {
                 "Request Start": 0,
                 "Classify": t_classify,
@@ -1418,7 +1427,7 @@ class VisionAgent:
                 "Model": routed_model or "default",
                 "Path": "heavy_error",
             }}) + "\n"
-            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+            yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
             return
 
         tool_call, prose_before_json = self._try_parse_tool_call(raw_response)
@@ -1441,8 +1450,8 @@ class VisionAgent:
                 if needs_approval:
                     yield json.dumps({"type": "status", "content": f"⚠ Approval: VISION wants to {tool_name.replace('_',' ')} {arguments} [Auto-approved — sandbox]"} ) + "\n"
                 action_label = f"Step {step}/{max_steps}: Using tool: {tool_name.replace('_', ' ')}..."
-                yield json.dumps({"type": "status", "content": action_label}) + "\n"
-                yield json.dumps({"type": "agent_step", "content": {"step": step, "max": max_steps, "tool": tool_name, "args": arguments}}) + "\n"
+                yield json.dumps({"type": "status", "content": action_label}, ensure_ascii=False) + "\n"
+                yield json.dumps({"type": "agent_step", "content": {"step": step, "max": max_steps, "tool": tool_name, "args": arguments}}, ensure_ascii=False) + "\n"
                 try:
                     tool_result = dispatch_tool(self.user, tool_name, arguments)
                     tool_result_str = json.dumps(tool_result, default=str)
@@ -1460,7 +1469,7 @@ class VisionAgent:
                         except Exception:
                             pass
                     _executor.submit(_deferred_toolerr)
-                    yield json.dumps({"type": "token", "content": msg}) + "\n"
+                    yield json.dumps({"type": "token", "content": msg}, ensure_ascii=False) + "\n"
                     yield json.dumps({"type": "diagnostics", "content": {
                         "Request Start": 0,
                         "Classify": t_classify,
@@ -1475,7 +1484,7 @@ class VisionAgent:
                         "Model": routed_model or "default",
                         "Path": "tool_error",
                     }}) + "\n"
-                    yield json.dumps({"type": "done"}) + "\n"
+                    yield json.dumps({"type": "done"}, ensure_ascii=False) + "\n"
                     return
 
                 _cr = current_raw
@@ -1489,7 +1498,7 @@ class VisionAgent:
                         pass
                 _executor.submit(_deferred_tool_save)
 
-                yield json.dumps({"type": "status", "content": f"Tool {tool_name} returned — summarizing (step {step})..."}) + "\n"
+                yield json.dumps({"type": "status", "content": f"Tool {tool_name} returned — summarizing (step {step}, ensure_ascii=False)..."}) + "\n"
 
                 followup_messages = current_messages + [
                     {"role": "assistant", "content": current_raw},
@@ -1500,7 +1509,9 @@ class VisionAgent:
                     resp_stream = client.chat(followup_messages, temperature=0.1, stream=True, model=routed_model, num_predict=dyn["num_predict"], num_ctx=dyn["num_ctx"]) if routed_model else client.chat(followup_messages, temperature=0.1, stream=True, num_predict=dyn["num_predict"], num_ctx=dyn["num_ctx"])
                     next_parts = []
                     ttft = None
-                    for line in resp_stream.iter_lines(decode_unicode=True):
+                    for line in resp_stream.iter_lines(decode_unicode=False):
+                        if isinstance(line, bytes):
+                            line = line.decode("utf-8", errors="replace")
                         if not line:
                             continue
                         if ttft is None:
@@ -1523,14 +1534,14 @@ class VisionAgent:
                     current_messages = followup_messages
                     current_raw = next_raw
                     tool_call = next_tool
-                    yield json.dumps({"type": "status", "content": f"Planning next step... ({step+1}/{max_steps})"}) + "\n"
+                    yield json.dumps({"type": "status", "content": f"Planning next step... ({step+1}/{max_steps}, ensure_ascii=False)"}) + "\n"
                     continue
                 else:
                     for tok in next_parts:
-                        yield json.dumps({"type": "token", "content": tok}) + "\n"
+                        yield json.dumps({"type": "token", "content": tok}, ensure_ascii=False) + "\n"
                     if not next_parts:
                         plain = next_raw
-                        yield json.dumps({"type": "token", "content": plain}) + "\n"
+                        yield json.dumps({"type": "token", "content": plain}, ensure_ascii=False) + "\n"
                         final_response = plain
                     else:
                         final_response = "".join(next_parts)
@@ -1573,11 +1584,11 @@ class VisionAgent:
             # Only yield if not already streamed incrementally
             try:
                 if is_tool_candidate is not False:
-                    yield json.dumps({"type": "token", "content": plain_reply}) + "\n"
+                    yield json.dumps({"type": "token", "content": plain_reply}, ensure_ascii=False) + "\n"
                 else:
                     logger.info("[PERF] Plain reply already streamed incrementally")
             except NameError:
-                yield json.dumps({"type": "token", "content": plain_reply}) + "\n"
+                yield json.dumps({"type": "token", "content": plain_reply}, ensure_ascii=False) + "\n"
 
         t_total = int((time.perf_counter() - t_start) * 1000)
         logger.debug("[PERF] Generation complete. Total=%dms", t_total)
@@ -1593,7 +1604,7 @@ class VisionAgent:
                         seen_urls.add(url)
                         srcs.append({"url": url, "title": k.get("title", "")[:80]})
                 if srcs:
-                    yield json.dumps({"type": "sources", "content": srcs}) + "\n"
+                    yield json.dumps({"type": "sources", "content": srcs}, ensure_ascii=False) + "\n"
         except Exception:
             pass
 
@@ -1622,7 +1633,7 @@ class VisionAgent:
         except Exception:
             pass
 
-        yield json.dumps({"type": "diagnostics", "content": diag}) + "\n"
+        yield json.dumps({"type": "diagnostics", "content": diag}, ensure_ascii=False) + "\n"
 
         logger.info("[PERF] Streaming complete: %dms", int((time.perf_counter() - t_start) * 1000))
-        yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}) + "\n"
+        yield json.dumps({"type": "done", "conversation_id": str(conversation.id) if conversation else None}, ensure_ascii=False) + "\n"
