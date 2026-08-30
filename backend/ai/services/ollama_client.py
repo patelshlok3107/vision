@@ -423,7 +423,16 @@ class OllamaClient:
                             if not line_str.startswith("data: "): continue
                             data = line_str[6:]
                             if data == "[DONE]": break
-                            try: j = json.loads(data); tok = j["choices"][0]["delta"].get("content","")
+                            try:
+                                j = json.loads(data)
+                                # Groq compound models can return error as SSE data (event: error) with 200 status
+                                if "error" in j:
+                                    err_msg = j["error"].get("message", str(j["error"])) if isinstance(j["error"], dict) else str(j["error"])
+                                    # Raise as OllamaError to be caught and surfaced as rate-limit
+                                    raise OllamaError(f"Groq error: {err_msg[:600]}")
+                                tok = j["choices"][0]["delta"].get("content","")
+                            except OllamaError:
+                                raise
                             except: continue
                             # Yield utf-8 encoded bytes (caller expects bytes, decodes as utf-8)
                             if tok: yield json.dumps({"message":{"content":tok}}, ensure_ascii=False).encode('utf-8')
@@ -476,9 +485,23 @@ class OllamaClient:
         repeat_penalty: float | None = None,
         keep_alive: str | None = None,
     ):
-        # Groq/OpenAI cloud path
+        # Groq/OpenAI cloud path — with fallback to local Ollama on rate-limit
         if self._use_groq():
-            return self._groq_chat(messages, temperature, stream, model_override=model, num_predict=num_predict)
+            try:
+                return self._groq_chat(messages, temperature, stream, model_override=model, num_predict=num_predict)
+            except OllamaError as e:
+                msg = str(e).lower()
+                is_rate = any(k in msg for k in ["rate-limited", "429", "rate_limit", "tpd", "rate limit"])
+                if is_rate:
+                    logger.warning("[Groq] Rate limited, falling back to local Ollama model %s: %s", self.text_model, e)
+                    # Fall through to Ollama below if local model exists
+                    if not self.text_model or not self.model_exists(self.text_model):
+                        # No local fallback, surface rate-limit error
+                        raise
+                    # Continue to Ollama path
+                    pass
+                else:
+                    raise
         use_model = model
         if not use_model:
             use_model = self.vision_model if is_vision else self.text_model
