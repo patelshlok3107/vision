@@ -342,7 +342,12 @@ class OllamaClient:
         "llama3.1": "groq/compound-mini",
         "llama3-8b-8192": "groq/compound-mini",
         "llama3-70b": "groq/compound",
-        "mistral": "mixtral-8x7b-32768",
+        "mistral": "groq/compound-mini",
+        "mixtral-8x7b-32768": "groq/compound-mini",
+        "mixtral": "groq/compound-mini",
+        "qwen2:0.5b": "groq/compound-mini",
+        "llava": "groq/compound-mini",
+        "qwen2": "groq/compound-mini",
     }
     def _groq_chat(self, messages, temperature, stream, model_override=None, num_predict=None):
         """Groq/Grok/OpenAI compatible path — uses requests, supports streaming SSE."""
@@ -359,7 +364,7 @@ class OllamaClient:
             model = model_override or self._groq_model()
             # map Ollama model names to Groq equivalents
             model = self.GROQ_MODEL_MAP.get(model, self.GROQ_MODEL_MAP.get(model.lower(), model))
-            if model.lower() == "llama3": model = "llama3-8b-8192"
+            if model.lower() == "llama3": model = "groq/compound-mini"
         else:
             # Default to Groq if groq key exists, else Grok, else OpenAI
             if self._groq_key:
@@ -367,7 +372,7 @@ class OllamaClient:
                 key = self._groq_key
                 model = model_override or self._groq_model()
                 model = self.GROQ_MODEL_MAP.get(model, self.GROQ_MODEL_MAP.get(model.lower(), model))
-                if model.lower() == "llama3": model = "llama3-8b-8192"
+                if model.lower() == "llama3": model = "groq/compound-mini"
             elif self._grok_key:
                 url = "https://api.x.ai/v1/chat/completions"
                 key = self._grok_key

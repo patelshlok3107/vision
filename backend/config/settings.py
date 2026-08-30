@@ -213,7 +213,7 @@ LOCAL_AI_ONLY = config('LOCAL_AI_ONLY', default=True, cast=bool)
 # Cloud LLM fallback (Groq / OpenAI / Grok) — free tier for Render
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-GROQ_MODEL = config('GROQ_MODEL', default='llama3-8b-8192')
+GROQ_MODEL = config('GROQ_MODEL', default='groq/compound-mini')
 OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
 # Grok (xAI) — alias for Groq keepalive naming; supports both GROK and GROQ env naming
 GROK_API_KEY = config('GROK_API_KEY', default=config('GROQ_API_KEY', default=''))
