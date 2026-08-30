@@ -347,3 +347,4 @@ This will cause a hydration error.
  
 [browser] <p> cannot contain a nested <div>.
 See this log for the ancestor stack trace. 
+ GET /chat/5ceaae2b-5959-43e3-8dc3-2b701c359a15 200 in 160ms (next.js: 71ms, application-code: 90ms)

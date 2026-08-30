@@ -48,6 +48,14 @@ _ATTACHMENT_KEYWORDS = [
     "the diagram", "the chart", "the graph", "attached", "uploaded",
 ]
 
+# Detailed/long-answer triggers — must never be treated as ultra-fast/simple
+_DETAILED_KEYWORDS = [
+    "in detail", "in details", "detailed", "comprehensive", "complete",
+    "thorough", "from beginner", "to advanced", "explain", "operating system",
+    "long answer", "in depth", "deeply", "full code", "entire", "e-commerce",
+    "ecommerce", "full stack",
+]
+
 def get_router_config():
     """Return router config from settings — all local models."""
     return {
@@ -98,12 +106,16 @@ def classify_intent(message: str, has_image: bool, explicit_mode: str) -> dict:
             if agent_score >= 1:
                 mode = "agent"
 
-        # Think detection — only if explicitly asks for reasoning AND long enough
+        # Think / detailed detection — "in detail", "explain india", "complete code" must get long output
         if mode == "auto":
             has_complex_kw = any(kw in msg_low for kw in _COMPLEX_KEYWORDS)
-            think_kw = ["explain in depth", "compare and contrast", "detailed analysis", "architecture", "quantum", "philosophical", "in detail"]
+            think_kw = ["explain in depth", "compare and contrast", "detailed analysis", "architecture", "quantum", "philosophical", "in detail", "in details", "comprehensive", "thorough", "explain india", "explain operating"]
             has_think_kw = any(kw in msg_low for kw in think_kw)
-            if (has_complex_kw or (has_think_kw and msg_len > 80)) and msg_len > 60:
+            has_detailed_kw = any(kw in msg_low for kw in _DETAILED_KEYWORDS)
+            if has_detailed_kw and msg_len > 12:
+                # Any detailed request, even short like "Explain India in detail." → think/long
+                mode = "think"
+            elif (has_complex_kw or (has_think_kw and msg_len > 20)) and msg_len > 15:
                 mode = "think"
 
         # DEFAULT: if nothing matched complex → FAST
@@ -114,16 +126,22 @@ def classify_intent(message: str, has_image: bool, explicit_mode: str) -> dict:
     if has_image:
         mode = "vision"
 
-    # ULTRA_FAST determination — AGGRESSIVE: 90% of short queries should hit this
+    # ULTRA_FAST determination — must NOT trigger for detailed/long requests
     skip_memory = False
     skip_rag = False
     is_simple = False
     is_ultra_short = msg_len < 50
 
+    has_detailed = any(kw in msg_low for kw in _DETAILED_KEYWORDS)
+
+    # Ultra-fast only for very short greetings/thanks — not for "What is X?" etc
+    is_greeting_like = bool(re.match(r"^(hi|hello|hey|yo|greetings|thanks|thank you|how are you|who are you|what are you)(\s|[.?]|$)", msg_low))
     ultra_fast_eligible = (
-        msg_len < 150
+        msg_len < 40
         and mode == "fast"
         and not has_image
+        and not has_detailed
+        and (is_greeting_like or msg_len < 20)
     )
 
     if ultra_fast_eligible:
@@ -152,27 +170,27 @@ def classify_intent(message: str, has_image: bool, explicit_mode: str) -> dict:
         top_p = getattr(settings, "ULTRA_FAST_TOP_P", 0.9)
         repeat_penalty = getattr(settings, "ULTRA_FAST_REPEAT_PENALTY", 1.1)
     elif mode == "think":
-        num_ctx = getattr(settings, "THINK_NUM_CTX", 12288)
-        num_predict = getattr(settings, "THINK_NUM_PREDICT", 3072)
-        temperature = 0.1
+        num_ctx = getattr(settings, "THINK_NUM_CTX", 16384)
+        num_predict = getattr(settings, "THINK_NUM_PREDICT", 8192)
+        temperature = 0.15
         top_k = 40
         top_p = 0.95
         repeat_penalty = 1.1
     elif mode == "code":
-        # FAST CODE MODE: dynamic limits based on request size — critical for 5s target on CPU
+        # Production: detailed/code requests must get full length (no 5s truncation)
         msg_len_code = len(msg_low)
-        is_small_code = msg_len_code < 120 and not any(x in msg_low for x in ["website", "ecommerce", "e-commerce", "landing page", "dashboard", "e commerce", "full stack", "entire project"])
-        is_medium_code = not is_small_code and msg_len_code < 250 and not any(x in msg_low for x in ["ecommerce", "full stack", "entire project", "create a website with"])
+        is_small_code = msg_len_code < 120 and not any(x in msg_low for x in ["website", "ecommerce", "e-commerce", "landing page", "dashboard", "e commerce", "full stack", "entire project", "complete"])
+        is_medium_code = not is_small_code and msg_len_code < 350 and not any(x in msg_low for x in ["ecommerce", "full stack", "entire project", "create a website with", "complete"])
         if is_small_code:
-            num_ctx = 4096
-            num_predict = 512
-        elif is_medium_code:
-            num_ctx = 6144
-            num_predict = 1024
-        else:
-            # Large website/project — still cap at 8192 ctx / 2048 predict (was 16384/4096, too slow)
             num_ctx = 8192
             num_predict = 2048
+        elif is_medium_code:
+            num_ctx = 12288
+            num_predict = 4096
+        else:
+            # Large website/project — full length
+            num_ctx = 16384
+            num_predict = 8192
         # Allow override via settings only if smaller than dynamic
         cfg_ctx = getattr(settings, "CODE_NUM_CTX", 16384)
         cfg_pred = getattr(settings, "CODE_NUM_PREDICT", 4096)

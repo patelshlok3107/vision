@@ -241,8 +241,8 @@ OLLAMA_TEXT_TIMEOUT = config('OLLAMA_TEXT_TIMEOUT', default=90000, cast=int)
 # 5 minutes for slow vision models downloading/loading to GPU
 OLLAMA_VISION_TIMEOUT = config('OLLAMA_VISION_TIMEOUT', default=300000, cast=int)
 OLLAMA_KEEP_ALIVE = config('OLLAMA_KEEP_ALIVE', default='30m')
-OLLAMA_NUM_PREDICT = config('OLLAMA_NUM_PREDICT', default=2048, cast=int)
-OLLAMA_NUM_CTX = config('OLLAMA_NUM_CTX', default=8192, cast=int)
+OLLAMA_NUM_PREDICT = config('OLLAMA_NUM_PREDICT', default=4096, cast=int)
+OLLAMA_NUM_CTX = config('OLLAMA_NUM_CTX', default=12288, cast=int)
 OLLAMA_TEMPERATURE = config('OLLAMA_TEMPERATURE', default=0.2, cast=float)
 
 # -------------------------------------------------------------------------
@@ -255,14 +255,15 @@ ULTRA_FAST_HISTORY_MESSAGES = config('ULTRA_FAST_HISTORY_MESSAGES', default=3, c
 ULTRA_FAST_TOP_K = config('ULTRA_FAST_TOP_K', default=20, cast=int)
 ULTRA_FAST_TOP_P = config('ULTRA_FAST_TOP_P', default=0.9, cast=float)
 ULTRA_FAST_REPEAT_PENALTY = config('ULTRA_FAST_REPEAT_PENALTY', default=1.1, cast=float)
-NORMAL_NUM_CTX = config('NORMAL_NUM_CTX', default=4096, cast=int)
-NORMAL_NUM_PREDICT = config('NORMAL_NUM_PREDICT', default=1024, cast=int)
+# Long-response defaults — increased for production detailed answers (was 1024, now 4096)
+NORMAL_NUM_CTX = config('NORMAL_NUM_CTX', default=8192, cast=int)
+NORMAL_NUM_PREDICT = config('NORMAL_NUM_PREDICT', default=4096, cast=int)
 CODE_NUM_CTX = config('CODE_NUM_CTX', default=16384, cast=int)
-CODE_NUM_PREDICT = config('CODE_NUM_PREDICT', default=4096, cast=int)
-THINK_NUM_CTX = config('THINK_NUM_CTX', default=12288, cast=int)
-THINK_NUM_PREDICT = config('THINK_NUM_PREDICT', default=3072, cast=int)
-AGENT_NUM_CTX = config('AGENT_NUM_CTX', default=12288, cast=int)
-AGENT_NUM_PREDICT = config('AGENT_NUM_PREDICT', default=2048, cast=int)
+CODE_NUM_PREDICT = config('CODE_NUM_PREDICT', default=8192, cast=int)
+THINK_NUM_CTX = config('THINK_NUM_CTX', default=16384, cast=int)
+THINK_NUM_PREDICT = config('THINK_NUM_PREDICT', default=8192, cast=int)
+AGENT_NUM_CTX = config('AGENT_NUM_CTX', default=16384, cast=int)
+AGENT_NUM_PREDICT = config('AGENT_NUM_PREDICT', default=4096, cast=int)
 
 # VISION attachments
 VISION_MAX_IMAGES_PER_MESSAGE = config('VISION_MAX_IMAGES_PER_MESSAGE', default=5, cast=int)

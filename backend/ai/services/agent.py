@@ -56,31 +56,44 @@ class VisionAgent:
 
     def _get_dynamic_options(self, mode: str, user_message: str, has_image: bool, conversation=None,
                               history_len: int = 0) -> dict:
-        """Estimate needed context/output for long code. No DB queries — uses prefetched history_len."""
+        """Estimate needed context/output for long code and detailed explanations. No DB queries."""
         mode_low = (mode or "").lower()
         opts: dict = {}
-        # Long code needs large predict and ctx — but capped for 5s target
+        low = user_message.lower()
+        is_detailed = any(k in low for k in ["in detail", "detailed", "comprehensive", "complete", "from beginner", "to advanced", "explain india", "explain operating", "long answer", "in depth", "deeply", "thorough"])
+        is_long_request = len(user_message) > 200 or any(k in low for k in ["e-commerce", "ecommerce", "full stack", "entire", "complete code", "give me the complete"])
+        # Long code needs large predict and ctx
         if mode_low in ("code", "agent") or self._is_long_code_request(user_message):
-            # Small code: 512/4096, medium: 1024/6144, large: 2048/8192 (not 4096/16384)
             l = len(user_message)
-            if l < 120:
+            if l < 120 and not is_detailed and not is_long_request:
+                opts["num_predict"] = 2048
+                opts["num_ctx"] = 8192
+            elif l < 350 and not is_long_request:
+                opts["num_predict"] = 4096
+                opts["num_ctx"] = 12288
+            else:
+                # Very long / complete project: maximum
+                opts["num_predict"] = 8192
+                opts["num_ctx"] = 16384
+        elif mode_low == "think":
+            opts["num_predict"] = 8192
+            opts["num_ctx"] = 16384
+        elif mode_low == "fast":
+            # Even fast but detailed requests need more tokens
+            if is_detailed or len(user_message) > 120:
+                opts["num_predict"] = 4096
+                opts["num_ctx"] = 8192
+            else:
                 opts["num_predict"] = 512
                 opts["num_ctx"] = 4096
-            elif l < 250:
-                opts["num_predict"] = 1024
-                opts["num_ctx"] = 6144
+        else:
+            # Normal mode — detailed questions get full length
+            if is_detailed or is_long_request or len(user_message) > 150:
+                opts["num_predict"] = 4096
+                opts["num_ctx"] = 12288
             else:
                 opts["num_predict"] = 2048
                 opts["num_ctx"] = 8192
-        elif mode_low == "think":
-            opts["num_predict"] = 3072
-            opts["num_ctx"] = 12288
-        elif mode_low == "fast":
-            opts["num_predict"] = 256
-            opts["num_ctx"] = 2048
-        else:
-            opts["num_predict"] = 1024
-            opts["num_ctx"] = 4096
         # Vision with many images may need larger ctx
         if has_image:
             opts["num_ctx"] = max(opts.get("num_ctx", 8192), 8192)
